@@ -1,5 +1,7 @@
-// Merges app.json with env-driven EAS project id (required for Expo push tokens).
-// Set EXPO_PUBLIC_EAS_PROJECT_ID after running `eas init` or from the Expo dashboard.
+// Merges app.json with EAS project id (Expo push + `eas build`).
+// Override with EXPO_PUBLIC_EAS_PROJECT_ID if you ever point at another Expo project.
+const EAS_PROJECT_ID = '0f733b6c-72a6-422b-acb9-e8a388f0ac03';
+
 const appJson = require('./app.json');
 
 module.exports = {
@@ -8,7 +10,8 @@ module.exports = {
     extra: {
       ...(appJson.expo.extra || {}),
       eas: {
-        projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '',
+        ...(appJson.expo.extra?.eas || {}),
+        projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID || EAS_PROJECT_ID,
       },
     },
   },
