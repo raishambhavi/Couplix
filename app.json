@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Couplix",
+    "slug": "couplix",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./Couplix Icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./Couplix Icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0A0F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"],
+        "NSCameraUsageDescription": "Couplix needs camera access for raw Daily Snaps and Photo Drops.",
+        "NSPhotoLibraryUsageDescription": "Couplix saves and shows your unfiltered photos only for you and your partner.",
+        "NSLocationWhenInUseUsageDescription": "Couplix can pin memories on your shared map when you choose to add location."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0A0F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "sounds": [],
+          "color": "#0B0A0F"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Couplix to access your camera for Daily Snaps.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ]
+  }
+}

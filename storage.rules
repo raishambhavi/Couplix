@@ -1,0 +1,33 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isCoupleMember(coupleCode) {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/couples/$(coupleCode)/members/$(request.auth.uid));
+    }
+
+    match /users/{uid}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /couples/{coupleCode}/chat_media/{messageId}/{fileName} {
+      allow read: if isCoupleMember(coupleCode);
+      allow write: if isCoupleMember(coupleCode)
+        && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    match /couples/{coupleCode}/daily_snaps/{fileName} {
+      allow read: if isCoupleMember(coupleCode);
+      allow write: if isCoupleMember(coupleCode)
+        && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    /** Night Note attachments — writer owns uid folder. */
+    match /couples/{coupleCode}/night_note/{uid}/{fileName} {
+      allow read: if isCoupleMember(coupleCode);
+      allow write: if isCoupleMember(coupleCode)
+        && request.auth.uid == uid
+        && request.resource.size < 25 * 1024 * 1024;
+    }
+  }
+}

@@ -1,0 +1,276 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isCoupleMember(coupleCode) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/couples/$(coupleCode)/members/$(request.auth.uid));
+    }
+
+    function hasOnlyKeys(data, allowed) {
+      return data.keys().hasOnly(allowed);
+    }
+
+    /** Document may omit optional fields; hasOnly() would reject those writes. */
+    function keysSubsetOf(data, allowed) {
+      return allowed.hasAll(data.keys());
+    }
+
+    function nonEmptyString(v, maxLen) {
+      return v is string && v.size() > 0 && v.size() <= maxLen;
+    }
+
+    function shortStringOrNull(v, maxLen) {
+      return v == null || (v is string && v.size() <= maxLen);
+    }
+
+    function validUserProfile(uid) {
+      let d = request.resource.data;
+      return keysSubsetOf(
+        d,
+        ['uid', 'email', 'displayName', 'photoURL', 'phoneNumber', 'createdAt', 'updatedAt', 'expoPushToken', 'expoPushTokenUpdatedAt']
+      ) &&
+      d.uid == uid &&
+      shortStringOrNull(d.email, 320) &&
+      shortStringOrNull(d.displayName, 80) &&
+      shortStringOrNull(d.photoURL, 2000) &&
+      shortStringOrNull(d.phoneNumber, 40) &&
+      shortStringOrNull(d.expoPushToken, 512) &&
+      (d.expoPushTokenUpdatedAt == null || d.expoPushTokenUpdatedAt is int || d.expoPushTokenUpdatedAt is float) &&
+      (d.createdAt is int || d.createdAt is float) &&
+      (d.updatedAt is int || d.updatedAt is float);
+    }
+
+    // Do not use hasOnlyKeys here: merge updates can leave extra fields from older clients and
+    // then every write fails until we only validate required fields.
+    function validMemberDoc(uid) {
+      let d = request.resource.data;
+      return d.uid == uid &&
+        (d.joinedAt is int || d.joinedAt is float);
+    }
+
+    // Keep validation minimal: access is still gated by isCoupleMember (member doc must exist).
+    // Stricter checks caused false denials when SDK serialized numbers/bools slightly differently.
+    function validChatMessage() {
+      let d = request.resource.data;
+      return d.kind in ['text', 'voice', 'photo', 'task'] &&
+        d.senderUid == request.auth.uid &&
+        (d.createdAt is int || d.createdAt is float);
+    }
+
+    function validPairingState() {
+      let d = request.resource.data;
+      return keysSubsetOf(d, ['partnerName', 'partnerNicknames', 'presenceStatus', 'coupleMode', 'updatedAt', 'partnerBirthMonth', 'partnerBirthDay', 'metAtMs']) &&
+        shortStringOrNull(d.partnerName, 80) &&
+        (d.partnerNicknames == null || d.partnerNicknames is map) &&
+        (d.presenceStatus == null || d.presenceStatus in ['awake', 'busy', 'free', 'winding_down']) &&
+        (d.coupleMode == null || d.coupleMode in ['together', 'longDistance']) &&
+        (d.updatedAt == null || d.updatedAt is int) &&
+        (d.partnerBirthMonth == null || (d.partnerBirthMonth is int && d.partnerBirthMonth >= 1 && d.partnerBirthMonth <= 12)) &&
+        (d.partnerBirthDay == null || (d.partnerBirthDay is int && d.partnerBirthDay >= 1 && d.partnerBirthDay <= 31)) &&
+        (d.metAtMs == null || d.metAtMs is int);
+    }
+
+    function validTasksState() {
+      let d = request.resource.data;
+      return hasOnlyKeys(d, ['modeState', 'completions', 'updatedAt']) &&
+        (d.modeState == null || d.modeState is map) &&
+        (d.completions == null || d.completions is map) &&
+        (d.updatedAt == null || d.updatedAt is int);
+    }
+
+    function validTogetherState() {
+      let d = request.resource.data;
+      return keysSubsetOf(d, ['wishes', 'targetAt', 'countMode', 'journal', 'coupleGoals', 'trips', 'updatedAt', 'lastEditedByUid', 'lastEditedByName', 'lastEditedAt']) &&
+        (d.wishes == null || d.wishes is list) &&
+        (d.targetAt == null || d.targetAt is int) &&
+        (d.countMode == null || d.countMode in ['days', 'hours', 'minutes', 'percent']) &&
+        (d.journal == null || d.journal is list) &&
+        (d.coupleGoals == null || d.coupleGoals is list) &&
+        (d.trips == null || d.trips is list) &&
+        (d.updatedAt == null || d.updatedAt is int) &&
+        shortStringOrNull(d.lastEditedByUid, 128) &&
+        shortStringOrNull(d.lastEditedByName, 80) &&
+        (d.lastEditedAt == null || d.lastEditedAt is int);
+    }
+
+    function validRitualsState() {
+      let d = request.resource.data;
+      return keysSubsetOf(d, ['dareStreak', 'streakBoard', 'partnerQ', 'updatedAt', 'nightNote', 'nightSaved', 'nightNoteFormat', 'nightMediaUrl']) &&
+        (d.dareStreak == null || d.dareStreak is int) &&
+        (d.streakBoard == null || d.streakBoard is map) &&
+        shortStringOrNull(d.partnerQ, 4000) &&
+        (d.updatedAt == null || d.updatedAt is int) &&
+        shortStringOrNull(d.nightNote, 4000) &&
+        (d.nightSaved == null || d.nightSaved is bool) &&
+        (d.nightNoteFormat == null || d.nightNoteFormat in ['text', 'voice', 'sketch', 'photo']) &&
+        shortStringOrNull(d.nightMediaUrl, 2000);
+    }
+
+    function validSnapState() {
+      let d = request.resource.data;
+      return keysSubsetOf(d, ['dailyByDate', 'partnerSentByDate', 'dropsByDate', 'collageLayout', 'memoryPins', 'updatedAt']) &&
+        (d.dailyByDate == null || d.dailyByDate is map) &&
+        (d.partnerSentByDate == null || d.partnerSentByDate is map) &&
+        (d.dropsByDate == null || d.dropsByDate is map) &&
+        (d.collageLayout == null || d.collageLayout in ['grid', 'polaroid', 'mosaic']) &&
+        (d.memoryPins == null || d.memoryPins is list) &&
+        (d.updatedAt == null || d.updatedAt is int);
+    }
+
+    function validStateDoc(docId) {
+      return (docId == 'pairing' && validPairingState()) ||
+        (docId == 'tasks' && validTasksState()) ||
+        (docId == 'together' && validTogetherState()) ||
+        (docId == 'rituals' && validRitualsState()) ||
+        (docId == 'snap' && validSnapState());
+    }
+
+    function validMoodDoc() {
+      let d = request.resource.data;
+      return hasOnlyKeys(d, ['uid', 'userName', 'value', 'emoji', 'label', 'updatedAtMs']) &&
+        nonEmptyString(d.uid, 128) &&
+        d.uid == request.auth.uid &&
+        shortStringOrNull(d.userName, 80) &&
+        d.value is int &&
+        d.value >= 0 &&
+        d.value <= 7 &&
+        shortStringOrNull(d.emoji, 8) &&
+        shortStringOrNull(d.label, 80) &&
+        d.updatedAtMs is int;
+    }
+
+    function validSkyDoc() {
+      let d = request.resource.data;
+      return hasOnlyKeys(d, ['uid', 'userName', 'lat', 'lon', 'updatedAtMs']) &&
+        nonEmptyString(d.uid, 128) &&
+        d.uid == request.auth.uid &&
+        shortStringOrNull(d.userName, 80) &&
+        d.lat is number &&
+        d.lon is number &&
+        d.updatedAtMs is int;
+    }
+
+    function validSoftLocationDoc() {
+      let d = request.resource.data;
+      return hasOnlyKeys(d, ['uid', 'userName', 'currentZone', 'customZones', 'updatedAtMs']) &&
+        nonEmptyString(d.uid, 128) &&
+        d.uid == request.auth.uid &&
+        shortStringOrNull(d.userName, 80) &&
+        shortStringOrNull(d.currentZone, 80) &&
+        (d.customZones == null || d.customZones is list) &&
+        d.updatedAtMs is int;
+    }
+
+    function validNudgeDoc() {
+      let d = request.resource.data;
+      return hasOnlyKeys(d, ['senderUid', 'senderName', 'patternId', 'createdAtMs', 'createdAt']) &&
+        nonEmptyString(d.senderUid, 128) &&
+        d.senderUid == request.auth.uid &&
+        shortStringOrNull(d.senderName, 80) &&
+        d.patternId in ['soft', 'double', 'long_short'] &&
+        d.createdAtMs is int;
+    }
+
+    function validHeartbeatDoc() {
+      let d = request.resource.data;
+      return hasOnlyKeys(d, ['senderUid', 'senderName', 'createdAtMs', 'createdAt']) &&
+        nonEmptyString(d.senderUid, 128) &&
+        d.senderUid == request.auth.uid &&
+        shortStringOrNull(d.senderName, 80) &&
+        d.createdAtMs is int;
+    }
+
+    // Partner-visible name + photo (HTTPS URLs). Private user doc stays owner-only.
+    function validCouplePublicProfile() {
+      let d = request.resource.data;
+      return hasOnlyKeys(d, ['displayName', 'photoURL', 'updatedAt']) &&
+        shortStringOrNull(d.displayName, 80) &&
+        shortStringOrNull(d.photoURL, 2000) &&
+        d.updatedAt is int;
+    }
+
+    // User profile: only the user can read/write their own document.
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validUserProfile(uid);
+      allow delete: if false;
+    }
+
+    // Couple-scoped data: only authenticated members of that couple can access.
+    match /couples/{coupleCode} {
+      // Top-level doc is not used by the app; keep locked.
+      allow read: if isCoupleMember(coupleCode);
+      allow write: if false;
+
+      // Membership: user can create/read/update/delete their own membership record.
+      // This allows secure bootstrap without opening all couple data.
+      match /members/{uid} {
+        allow read: if isOwner(uid) || isCoupleMember(coupleCode);
+        allow create, update: if isOwner(uid) && validMemberDoc(uid);
+        allow delete: if false;
+      }
+
+      match /public_profiles/{profileUid} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create, update: if isCoupleMember(coupleCode) &&
+          request.auth.uid == profileUid &&
+          validCouplePublicProfile();
+        allow delete: if false;
+      }
+
+      // Shared state docs (pairing, tasks, together, rituals, snap)
+      match /state/{docId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create, update: if isCoupleMember(coupleCode) && validStateDoc(docId);
+        allow delete: if false;
+      }
+
+      // Realtime chat
+      match /chat_messages/{messageId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create, update: if isCoupleMember(coupleCode) && validChatMessage();
+        allow delete: if false;
+      }
+
+      // Feature streams/collections
+      match /moods/{docId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create, update: if isCoupleMember(coupleCode) && docId == request.auth.uid && validMoodDoc();
+        allow delete: if false;
+      }
+      match /sky_state/{docId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create, update: if isCoupleMember(coupleCode) && docId == request.auth.uid && validSkyDoc();
+        allow delete: if false;
+      }
+      match /soft_location_state/{docId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create, update: if isCoupleMember(coupleCode) && docId == request.auth.uid && validSoftLocationDoc();
+        allow delete: if false;
+      }
+      match /nudges/{docId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create, update: if isCoupleMember(coupleCode) && validNudgeDoc();
+        allow delete: if false;
+      }
+      match /heartbeat_events/{docId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create, update: if isCoupleMember(coupleCode) && validHeartbeatDoc();
+        allow delete: if false;
+      }
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
