@@ -12,6 +12,7 @@
       "backgroundColor": "#0B0A0F"
     },
     "ios": {
+      "bundleIdentifier": "com.raishambhavi.couplix",
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"],
@@ -21,6 +22,7 @@
       }
     },
     "android": {
+      "package": "com.raishambhavi.couplix",
       "adaptiveIcon": {
         "backgroundColor": "#0B0A0F",
         "foregroundImage": "./assets/android-icon-foreground.png",
