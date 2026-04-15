@@ -1,10 +1,13 @@
-// Global Firestore switch for safe demos/testing.
-// Default is OFF unless EXPO_PUBLIC_FIRESTORE_SYNC is explicitly true/1/yes/on.
+// Global Firestore switch.
+// Default is ON for production/TestFlight so cloud pairing always works unless you explicitly disable it.
+// Set EXPO_PUBLIC_FIRESTORE_SYNC=false (or 0/no/off) only for local demos without Firestore writes.
 const firestoreGlobalEnabled = (() => {
   const raw = String(process.env.EXPO_PUBLIC_FIRESTORE_SYNC ?? '')
     .trim()
     .toLowerCase();
-  return raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on';
+  if (raw === '' || raw === 'undefined') return true;
+  if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off') return false;
+  return raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on' || raw === 'enabled';
 })();
 
 // Per-module rollout switches.

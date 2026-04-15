@@ -13,9 +13,12 @@
     },
     "ios": {
       "bundleIdentifier": "com.raishambhavi.couplix",
+      "buildNumber": "5",
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "NSCameraUsageDescription": "Couplix needs camera access for raw Daily Snaps and Photo Drops.",
         "NSPhotoLibraryUsageDescription": "Couplix saves and shows your unfiltered photos only for you and your partner.",
         "NSLocationWhenInUseUsageDescription": "Couplix can pin memories on your shared map when you choose to add location."
@@ -35,6 +38,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-font",
       "@react-native-community/datetimepicker",
       [
         "expo-notifications",
