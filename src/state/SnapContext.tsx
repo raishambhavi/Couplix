@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
+import { deferFirestoreUnsubscribe } from '../config/deferFirestoreUnsubscribe';
 import { firebaseDb } from '../config/firebase';
 import { FIRESTORE_SYNC_FLAGS } from '../config/firestoreSyncFlags';
 import { useAuth } from './AuthContext';
@@ -244,7 +245,7 @@ export function SnapProvider({ children }: { children: React.ReactNode }) {
         setHydrated(true);
       }
     );
-    return () => unsub();
+    return () => deferFirestoreUnsubscribe(unsub);
   }, [coupleCode, user, snapDocRef]);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import type { CoupleMode } from './dailyDares';
 import { pickRandomFromPool } from './dailyDares';
+import { syncedPoolIndex } from '../utils/ritualDeterminism';
 
 export const QOTD_LIVING_TOGETHER: readonly string[] = [
   "What is something about your childhood home that you still think about?",
@@ -130,4 +131,18 @@ export const QOTD_LONG_DISTANCE: readonly string[] = [
 export function randomQotd(mode: CoupleMode, previous?: string | null) {
   const pool = mode === 'together' ? QOTD_LIVING_TOGETHER : QOTD_LONG_DISTANCE;
   return pickRandomFromPool(pool as readonly string[], previous ?? null);
+}
+
+/** Same question for both partners on a given UTC day (when `coupleCode` is set). */
+export function syncedQotdText(
+  mode: CoupleMode,
+  coupleCode: string | null | undefined,
+  dateKey: string,
+): string {
+  if (!coupleCode?.trim()) {
+    return 'Pair with your partner to unlock the same question here every day.';
+  }
+  const pool = mode === 'together' ? QOTD_LIVING_TOGETHER : QOTD_LONG_DISTANCE;
+  const i = syncedPoolIndex(pool.length, 'qotd-v1', coupleCode.trim(), dateKey);
+  return pool[i] ?? 'What is one small thing you appreciated about each other recently?';
 }

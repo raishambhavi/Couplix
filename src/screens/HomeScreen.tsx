@@ -13,6 +13,11 @@ import { useAuth, WELCOME_BACK_STORAGE_KEY } from '../state/AuthContext';
 import { usePairing } from '../state/PairingContext';
 import { useTheme } from '../state/ThemeContext';
 
+const HOME_HERO_ROTATING_LINES = [
+  'Together is a feeling, not a place.',
+  'Warm, private, and in sync — wherever you are.',
+] as const;
+
 function FloatingHearts() {
   const a = useRef(new Animated.Value(0)).current;
   const heartRed = '#FF3B57';
@@ -90,6 +95,14 @@ export function HomeScreen({ navigation }: { navigation: any }) {
   } = usePairing();
   const [statusOpen, setStatusOpen] = React.useState(false);
   const [welcomeLine, setWelcomeLine] = useState<string | null>(null);
+  const [heroLineIndex, setHeroLineIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHeroLineIndex((i) => (i + 1) % HOME_HERO_ROTATING_LINES.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!auth.user?.uid || auth.loading) return;
@@ -140,9 +153,11 @@ export function HomeScreen({ navigation }: { navigation: any }) {
         >
           <Text style={styles.loveHeroEyebrow}>Couplix</Text>
           <Text style={[styles.loveHeroTitle, { color: colors.text }]}>Made for two hearts</Text>
-          <Text style={[styles.loveHeroSub, { color: colors.muted }]}>
-            Warm, private, and in sync — wherever you are.
-          </Text>
+          <View style={styles.loveHeroRotatingWrap} accessibilityLiveRegion="polite">
+            <Text style={[styles.loveHeroRotatingLine, { color: colors.muted }]}>
+              {HOME_HERO_ROTATING_LINES[heroLineIndex]}
+            </Text>
+          </View>
         </LinearGradient>
 
         <TogetherForBanner onPressEditDate={() => navigation.navigate('Settings')} />
@@ -164,14 +179,13 @@ export function HomeScreen({ navigation }: { navigation: any }) {
         <SoftCard style={[styles.matchCard, { borderColor: 'rgba(236,72,153,0.45)', borderWidth: 1 }]}>
           <Text style={styles.matchLabelPink}>IT'S A PERFECT MATCH!</Text>
           <Text style={[styles.matchTitle, { color: colors.text }]}>You + {partnerLabel}</Text>
-          <Text style={[styles.matchSubtitle, { color: colors.muted }]}>
-            Stay close with mood features, rituals, snaps, and more.
-          </Text>
 
-          <Text style={[styles.modeLabel, { color: colors.muted }]}>
-            Current: {coupleMode === 'together' ? 'Living together' : 'Long distance'}
-          </Text>
-          <GoldButton title="Status of Living" onPress={() => setStatusOpen(true)} style={{ marginTop: 10, width: '100%' }} />
+          <Text style={[styles.modeLabel, { color: colors.muted }]}>Status of living</Text>
+          <GoldButton
+            title={coupleMode === 'together' ? 'Living together' : 'Long distance'}
+            onPress={() => setStatusOpen(true)}
+            style={{ marginTop: 10, width: '100%' }}
+          />
           <Text style={[styles.modeHint, { color: colors.muted }]}>Switch anytime — all tabs adapt instantly.</Text>
 
           <View style={styles.avatarStage}>
@@ -297,7 +311,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 108,
+    paddingTop: 12,
     paddingBottom: 40,
     gap: 14,
   },
@@ -340,11 +354,15 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 6,
   },
-  loveHeroSub: {
-    fontSize: 13,
+  loveHeroRotatingWrap: {
+    marginTop: 4,
+    justifyContent: 'flex-start',
+  },
+  loveHeroRotatingLine: {
+    fontSize: 14,
     fontWeight: '700',
-    lineHeight: 18,
-    marginTop: 8,
+    lineHeight: 22,
+    letterSpacing: 0.15,
   },
   matchLabelPink: {
     fontSize: 12,
@@ -356,13 +374,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '900',
     marginTop: 8,
-  },
-  matchSubtitle: {
-    marginTop: 8,
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
   },
   modeLabel: {
     marginTop: 14,

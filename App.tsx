@@ -1,6 +1,7 @@
 import React from 'react';
-import { LogBox, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LogBox, Modal, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -15,20 +16,20 @@ import { SettingsProvider } from './src/state/SettingsContext';
 import { ThemeProvider, useTheme } from './src/state/ThemeContext';
 import { AuthProvider, useAuth } from './src/state/AuthContext';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
-import { SettingsScreen } from './src/screens/SettingsScreen';
+import { SettingsStackNavigator } from './src/navigation/SettingsStack';
 import { HomeScreen } from './src/screens/HomeScreen';
-import { HeartbeatScreen } from './src/screens/HeartbeatScreen';
 import { NudgeScreen } from './src/screens/NudgeScreen';
 import { RitualsStackNavigator } from './src/navigation/RitualsStack';
 import { MoodHubScreen } from './src/screens/feature/MoodHubScreen';
-import { SoftLocationScreen } from './src/screens/feature/SoftLocationScreen';
-import { SharedSkyScreen } from './src/screens/feature/SharedSkyScreen';
+import { SkyAndLocationScreen } from './src/screens/feature/SkyAndLocationScreen';
 import { MoodSyncScreen } from './src/screens/feature/MoodSyncScreen';
+import { SharedCalendarScreen } from './src/screens/feature/SharedCalendarScreen';
 import { usePairing } from './src/state/PairingContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SignInScreen } from './src/screens/auth/SignInScreen';
 import { SignUpScreen } from './src/screens/auth/SignUpScreen';
 import { ProfileSetupScreen } from './src/screens/auth/ProfileSetupScreen';
+import { couplixMainTabHeaderScreenOptions } from './src/navigation/couplixHeaderScreenOptions';
 import { HeaderBrand } from './src/components/HeaderBrand';
 import { FeatureIndexModal } from './src/components/FeatureIndexModal';
 import { useNavigationContainerRef } from '@react-navigation/native';
@@ -36,7 +37,6 @@ import { AccountScreen } from './src/screens/account/AccountScreen';
 import { RitualsProvider } from './src/state/RitualsContext';
 import { SnapProvider } from './src/state/SnapContext';
 import { SnapStackNavigator } from './src/navigation/SnapStack';
-import { TaskStackNavigator } from './src/navigation/TaskStack';
 import { TaskProvider } from './src/state/TaskContext';
 import { TogetherStackNavigator } from './src/navigation/TogetherStack';
 import { ChatProvider } from './src/state/ChatContext';
@@ -44,9 +44,13 @@ import { ChatStackNavigator } from './src/navigation/ChatStack';
 import { GrowthScreen } from './src/screens/GrowthScreen';
 import { ExpoPushRegistration } from './src/components/ExpoPushRegistration';
 import { navigateFromNotificationData } from './src/navigation/handleNotificationOpen';
+import { chromeBarGradientColors } from './src/theme/ambientGradients';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+/** Hidden tab screens opened from Mood hub — `goBack()` on the tab root often lands on Home instead. */
+const MOOD_HUB_DETAIL_TABS = new Set(['Nudge', 'SoftLocation', 'MoodSync', 'SharedCalendar']);
 
 enableScreens();
 
@@ -67,6 +71,7 @@ const QUOTE_DISMISS_KEY = 'quote:dismissedDate';
 function MainTabs() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const tabChromeGradient = chromeBarGradientColors(colors.mode);
   const [indexOpen, setIndexOpen] = React.useState(false);
   const [quoteOpen, setQuoteOpen] = React.useState(false);
   const [quote, setQuote] = React.useState(LOVE_QUOTES[0]);
@@ -99,6 +104,7 @@ function MainTabs() {
     }
     setQuoteOpen(false);
   };
+  const baseHeader = couplixMainTabHeaderScreenOptions({ insets, colors });
   return (
     <RitualsProvider>
       <SnapProvider>
@@ -113,30 +119,32 @@ function MainTabs() {
           { key: 'mood', label: 'Mood', icon: 'happy', onPress: () => (globalThis as any).__couplixNav?.('Mood') },
           { key: 'snap', label: 'Snap', icon: 'camera', onPress: () => (globalThis as any).__couplixNav?.('Snap') },
           { key: 'chat', label: 'Chat', icon: 'chatbubbles', onPress: () => (globalThis as any).__couplixNav?.('Chat') },
-          { key: 'rituals', label: 'Rituals', icon: 'book', onPress: () => (globalThis as any).__couplixNav?.('Rituals') },
-          { key: 'task', label: 'Tasks', icon: 'checkbox-outline', onPress: () => (globalThis as any).__couplixNav?.('Task') },
+          {
+            key: 'rituals',
+            label: 'Rituals',
+            icon: 'book',
+            onPress: () => (globalThis as any).__couplixNav?.('Rituals', { screen: 'RitualsHub' }),
+          },
           { key: 'together', label: 'Together', icon: 'people', onPress: () => (globalThis as any).__couplixNav?.('Together') },
-          { key: 'growth', label: 'Growth', icon: 'trending-up', onPress: () => (globalThis as any).__couplixNav?.('Growth') },
           { key: 'settings', label: 'Settings', icon: 'settings', onPress: () => (globalThis as any).__couplixNav?.('Settings') },
         ]}
       />
       <Tab.Navigator
         screenOptions={{
-        headerShown: true,
-        headerTitle: () => <HeaderBrand title="Couplix" onPressIcon={() => setIndexOpen(true)} />,
-        headerTitleAlign: 'left',
-        headerTransparent: true,
-        headerStyle: {
-          backgroundColor: 'transparent',
-          height: 96,
-        },
-        headerTitleContainerStyle: {
-          paddingLeft: 6,
-          paddingRight: 6,
-        },
-        headerShadowVisible: false,
-        tabBarStyle: {
+        ...baseHeader,
+        sceneStyle: {
           backgroundColor: colors.background,
+        },
+        tabBarBackground: () => (
+          <LinearGradient
+            colors={tabChromeGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.85 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+        ),
+        tabBarStyle: {
+          backgroundColor: 'transparent',
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.border,
           paddingBottom: Math.max(insets.bottom, 8),
@@ -163,6 +171,8 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           title: 'Home',
+          headerTitle: () => <HeaderBrand title="CoupliX" onPressIcon={() => setIndexOpen(true)} />,
+          headerTitleAlign: 'left',
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       />
@@ -195,9 +205,10 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStackNavigator}
         options={{
           title: 'Settings',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
         }}
       />
@@ -206,16 +217,6 @@ function MainTabs() {
         component={RitualsStackNavigator}
         options={{
           title: 'Rituals',
-          headerShown: false,
-          tabBarButton: () => null,
-          tabBarItemStyle: { display: 'none' },
-        }}
-      />
-      <Tab.Screen
-        name="Task"
-        component={TaskStackNavigator}
-        options={{
-          title: 'Tasks',
           headerShown: false,
           tabBarButton: () => null,
           tabBarItemStyle: { display: 'none' },
@@ -240,15 +241,6 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Heartbeat"
-        component={HeartbeatScreen}
-        options={{
-          title: 'Heartbeat',
-          tabBarButton: () => null,
-          tabBarItemStyle: { display: 'none' },
-        }}
-      />
-      <Tab.Screen
         name="Nudge"
         component={NudgeScreen}
         options={{
@@ -259,18 +251,9 @@ function MainTabs() {
       />
       <Tab.Screen
         name="SoftLocation"
-        component={SoftLocationScreen}
+        component={SkyAndLocationScreen}
         options={{
-          title: 'Soft Location',
-          tabBarButton: () => null,
-          tabBarItemStyle: { display: 'none' },
-        }}
-      />
-      <Tab.Screen
-        name="SharedSky"
-        component={SharedSkyScreen}
-        options={{
-          title: 'Shared Sky',
+          title: 'Location & sky',
           tabBarButton: () => null,
           tabBarItemStyle: { display: 'none' },
         }}
@@ -284,8 +267,17 @@ function MainTabs() {
           tabBarItemStyle: { display: 'none' },
         }}
       />
-        </Tab.Navigator>
-        <Modal visible={quoteOpen} transparent animationType="fade" onRequestClose={closeQuote}>
+      <Tab.Screen
+        name="SharedCalendar"
+        component={SharedCalendarScreen}
+        options={{
+          title: 'Shared Calendar',
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: 'none' },
+        }}
+      />
+      </Tab.Navigator>
+      <Modal visible={quoteOpen} transparent animationType="fade" onRequestClose={closeQuote}>
           <View style={styles.quoteBackdrop}>
             <View style={[styles.quoteCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[styles.quoteTitle, { color: colors.gold }]}>Couplix Love Note</Text>
@@ -367,13 +359,20 @@ function AppNavigator() {
     };
   }, [auth.loading, auth.user, lastNotificationResponse]);
   // Expose a tiny global nav helper for the Index modal (keeps it simple and reliable).
-  (globalThis as any).__couplixNav = (routeName: string) => {
+  (globalThis as any).__couplixNav = (routeName: string, params?: object) => {
     try {
-      navRef.navigate(routeName as never);
+      const nav = navRef as unknown as { navigate: (name: string, p?: object) => void };
+      if (params && typeof params === 'object') nav.navigate(routeName, params);
+      else nav.navigate(routeName);
     } catch {}
   };
   (globalThis as any).__couplixNavBack = () => {
     try {
+      const leaf = navRef.getCurrentRoute()?.name;
+      if (leaf && MOOD_HUB_DETAIL_TABS.has(leaf)) {
+        navRef.navigate('Mood' as never);
+        return;
+      }
       if (navRef.canGoBack()) navRef.goBack();
       else (globalThis as any).__couplixOpenIndex?.();
     } catch {}
@@ -399,7 +398,9 @@ function AppNavigator() {
       <StatusBar style={statusBarStyle as any} />
 
       {auth.loading ? (
-        <></>
+        <View style={[styles.authLoadingRoot, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.gold} />
+        </View>
       ) : auth.user ? (
         <Stack.Navigator
           key={isPaired ? 'paired' : 'unpaired'}
@@ -453,6 +454,11 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  authLoadingRoot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   quoteBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

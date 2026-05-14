@@ -11,6 +11,7 @@ import { FloatingBackButton } from '../components/FloatingBackButton';
 import { GoldButton } from '../components/GoldButton';
 import { ScreenHeading } from '../components/ScreenHeading';
 import { SoftCard } from '../components/SoftCard';
+import { deferFirestoreUnsubscribe } from '../config/deferFirestoreUnsubscribe';
 import { FIRESTORE_SYNC_FLAGS } from '../config/firestoreSyncFlags';
 import { firebaseDb } from '../config/firebase';
 import { useAuth } from '../state/AuthContext';
@@ -119,7 +120,7 @@ export function NudgeScreen() {
         playPattern((x.patternId ?? 'double') as Pattern['id']).catch(() => {});
       }
     });
-    return () => unsub();
+    return () => deferFirestoreUnsubscribe(unsub);
   }, [coupleCode, uid, coupleMembershipReady]);
 
   const sendNudge = async () => {
@@ -217,7 +218,7 @@ export function NudgeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: 20, paddingTop: 108, paddingBottom: 32, gap: 14 },
+  container: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, gap: 14 },
   sectionTitle: { fontSize: 15, fontWeight: '900', marginBottom: 10 },
   patternWrap: { gap: 10 },
   patternItem: { borderWidth: 1, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12 },

@@ -1,0 +1,117 @@
+================================================================================
+COUPLIX — APPLE DEVELOPER, TESTFLIGHT & FEEDBACK (plain text for Notes / print)
+================================================================================
+
+PART A — ENROLL IN APPLE DEVELOPER PROGRAM ($99 USD / year)
+--------------------------------------------------------------------------------
+1. Use (or create) an Apple ID with two-factor authentication ON.
+   https://appleid.apple.com
+
+2. Go to: https://developer.apple.com/programs/enroll/
+   Sign in with that Apple ID.
+
+3. Choose account type:
+   • Individual — simplest; your name appears as seller.
+   • Organization — needs D-U-N-S number and legal entity; for a company.
+
+4. Pay the annual fee (credit card). Agree to the license agreement.
+
+5. Wait for activation (often same day for Individual; Organization can take longer).
+
+6. After enrollment, open: https://developer.apple.com/account
+   Confirm “Membership” shows Active.
+
+Keep: the same Apple ID for App Store Connect + Xcode/EAS signing.
+
+
+PART B — APP STORE CONNECT (required before TestFlight / App Store)
+--------------------------------------------------------------------------------
+1. Go to: https://appstoreconnect.apple.com
+   Sign in with the Apple ID that has the Developer Program.
+
+2. Agreements: accept any pending “Paid Applications” or “Apple Developer Program” agreements.
+
+3. Create the app record (once per app):
+   • My Apps → + → New App
+   • Platforms: iOS
+   • Name: Couplix (or your App Store name; can differ from display name)
+   • Primary language, Bundle ID: MUST match your app — e.g. com.raishambhavi.couplix
+     (Create the Bundle ID in developer.apple.com → Certificates, Identifiers & Profiles →
+      Identifiers → + → App IDs, if it does not exist yet.)
+   • SKU: any unique string you won’t change (e.g. couplix-ios-1)
+
+4. Fill minimum metadata later for TestFlight External Testing; Internal Testing needs less.
+
+
+PART C — BUILD iOS WITH EAS (from your Mac, in the Yonder folder)
+--------------------------------------------------------------------------------
+1. Terminal:
+   cd "/path/to/Yonder"
+   npx eas-cli@latest build --platform ios --profile preview
+   (or production when you are ready for store)
+
+2. First time: EAS will ask to log in to Apple, create/select distribution certificate
+   and provisioning profile. Follow prompts (use the enrolled Apple ID).
+
+3. When the build finishes, note the build page on expo.dev.
+
+
+PART D — UPLOAD BUILD TO APP STORE CONNECT
+--------------------------------------------------------------------------------
+Option 1 — EAS Submit (recommended):
+   npx eas-cli@latest submit --platform ios --latest
+   Follow prompts; pick the App Store Connect app you created.
+
+Option 2 — Download .ipa from Expo and use Transporter app (Mac App Store) to upload.
+
+5. In App Store Connect → your app → TestFlight: wait until processing completes
+   (often 5–30 minutes; sometimes longer).
+
+
+PART E — INVITE FRIENDS & FAMILY (TESTFLIGHT)
+--------------------------------------------------------------------------------
+INTERNAL TESTING (up to 100 people; fast):
+• App Store Connect → Users and Access → add users by Apple ID email (they need to accept).
+• TestFlight → Internal Testing → create group → add the build → add testers.
+• Testers install “TestFlight” from App Store; they get an email invite.
+
+EXTERNAL TESTING (up to 10,000; first build needs short “Beta App Review”):
+• TestFlight → External Testing → new group → add build → fill “What to Test” notes
+• Submit for Beta App Review; after approval, share public link or add emails.
+
+Tip: Start with INTERNAL testers (you + close friends with Apple IDs) for quickest feedback.
+
+
+PART F — WHAT TO TELL TESTERS (copy/paste)
+--------------------------------------------------------------------------------
+• Install TestFlight from the App Store.
+• Open the email invite from Apple / tap the public link.
+• Install Couplix beta.
+• Try the flows in the feedback checklist (see Tester-Feedback-Checklist.csv).
+• Send feedback to: [YOUR EMAIL OR FORM LINK]
+• Screenshots + “what you tapped” help a lot.
+
+
+PART G — LATER: APP STORE RELEASE (high level)
+--------------------------------------------------------------------------------
+• App Store tab in App Store Connect: screenshots, description, keywords, privacy policy URL,
+  support URL, age rating questionnaire, export compliance.
+• First submission → App Review (can take 24–48+ hours).
+• After approval: release manually or automatically.
+• “Trending” is not a direct setting — driven by downloads, velocity, featuring, marketing.
+
+
+PART H — THINGS TO KEEP IN MIND
+--------------------------------------------------------------------------------
+• Privacy: publish a privacy policy URL before App Store submission; disclose data you collect
+  (accounts, photos, location if used, analytics, crash logs).
+• Same Firebase/backend for testers as production unless you use a separate project on purpose.
+• Version numbers: bump app.json "version" / build numbers for each store submission.
+• Rotate any API keys that ever leaked (e.g. if .env was in a public GitHub repo).
+• Crash reporting (e.g. Sentry) helps a lot for beta quality.
+• App Store keywords and subtitle matter for discovery; screenshots and first 2 lines of
+  description matter for conversion.
+
+================================================================================
+END OF GUIDE
+================================================================================

@@ -11,6 +11,7 @@ import { GoldButton } from '../../components/GoldButton';
 import { MoodDial } from '../../components/MoodDial';
 import { ScreenHeading } from '../../components/ScreenHeading';
 import { SoftCard } from '../../components/SoftCard';
+import { deferFirestoreUnsubscribe } from '../../config/deferFirestoreUnsubscribe';
 import { FIRESTORE_SYNC_FLAGS } from '../../config/firestoreSyncFlags';
 import { firebaseDb } from '../../config/firebase';
 import { useAuth } from '../../state/AuthContext';
@@ -85,7 +86,7 @@ export function MoodSyncScreen() {
         }
       }
     });
-    return () => unsub();
+    return () => deferFirestoreUnsubscribe(unsub);
   }, [coupleCode, auth.user, uid, partnerName, coupleMembershipReady]);
 
   const sendMoodToPartner = useCallback(async () => {
@@ -204,7 +205,7 @@ export function MoodSyncScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  container: { paddingHorizontal: 20, paddingTop: 108, paddingBottom: 32, gap: 14 },
+  container: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, gap: 14 },
   sectionTitle: { fontSize: 15, fontWeight: '900', marginBottom: 4 },
   sendNote: { fontSize: 12, fontWeight: '700', marginTop: 10, textAlign: 'center', lineHeight: 17 },
   partnerWidget: {

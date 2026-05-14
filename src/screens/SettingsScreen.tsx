@@ -23,7 +23,6 @@ import { useNavigation } from '@react-navigation/native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { AmbientBackground } from '../components/AmbientBackground';
-import { ScreenHeading } from '../components/ScreenHeading';
 import { SoftCard } from '../components/SoftCard';
 import { usePairing } from '../state/PairingContext';
 import { useSettings } from '../state/SettingsContext';
@@ -32,10 +31,87 @@ import { GoldButton } from '../components/GoldButton';
 import { useAuth } from '../state/AuthContext';
 import { uploadProfilePhoto } from '../utils/uploadProfilePhoto';
 import { elapsedSinceMet, MONTH_LABELS, daysInMonth, pad2 } from '../utils/relationshipTime';
+import type { ThemeColors } from '../theme/colors';
+
+export type SettingsPanelId =
+  | 'profile'
+  | 'partner'
+  | 'personal'
+  | 'appearance'
+  | 'notifications'
+  | 'relationship'
+  | 'pairing'
+  | 'account';
+
+function SettingsGroupCard({ children, colors }: { children: React.ReactNode; colors: ThemeColors }) {
+  return (
+    <View
+      style={{
+        borderRadius: 18,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        overflow: 'hidden',
+        marginBottom: 10,
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+function SettingsNavRow({
+  icon,
+  title,
+  subtitle,
+  showDivider,
+  active,
+  onPress,
+  colors,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  subtitle?: string;
+  showDivider: boolean;
+  active?: boolean;
+  onPress: () => void;
+  colors: ThemeColors;
+}) {
+  return (
+    <>
+      {showDivider ? (
+        <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: 54 }} />
+      ) : null}
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 13,
+          paddingHorizontal: 14,
+          gap: 12,
+          backgroundColor: active ? colors.cardGlow : pressed ? colors.cardGlow : 'transparent',
+        })}
+      >
+        <Ionicons name={icon} size={22} color={colors.gold} style={{ opacity: 0.95 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>{title}</Text>
+          {subtitle ? (
+            <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '600', marginTop: 2 }} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      </Pressable>
+    </>
+  );
+}
 
 export function SettingsScreen() {
   const { mode, setMode, colors, applyTheme } = useTheme();
   const navigation = useNavigation<any>();
+  const [settingsPanel, setSettingsPanel] = useState<SettingsPanelId | null>(null);
   const settings = useSettings();
   const auth = useAuth();
   const {
@@ -490,8 +566,110 @@ export function SettingsScreen() {
       <AmbientBackground />
       <View style={styles.screenRoot}>
         <ScrollView contentContainerStyle={styles.container} style={styles.root}>
-          <ScreenHeading title="Settings" subtitle="Everything that keeps Couplix effortless." />
+          <View style={[styles.profileHero, { paddingTop: 4 }]}>
+            <Pressable onPress={() => setSettingsPanel((p) => (p === 'profile' ? null : 'profile'))}>
+              {photoDraft ? (
+                <Image source={{ uri: photoDraft }} style={styles.profileHeroAvatar} />
+              ) : (
+                <View style={[styles.profileHeroAvatar, { backgroundColor: colors.cardGlow, borderColor: colors.border }]}>
+                  <Ionicons name="person" size={40} color={colors.gold} />
+                </View>
+              )}
+            </Pressable>
+            <Text style={[styles.profileHeroName, { color: colors.text }]}>
+              {displayNameDraft.trim() || auth.profile?.displayName || 'You'}
+            </Text>
+            <Text style={[styles.profileHeroSub, { color: colors.muted }]} numberOfLines={1}>
+              {emailDraft.trim() || auth.profile?.email || 'Couplix profile'}
+            </Text>
+            {partnerName?.trim() ? (
+              <Text style={[styles.profileHeroPartner, { color: colors.muted }]} numberOfLines={1}>
+                with {partnerName.trim()}
+              </Text>
+            ) : null}
+          </View>
 
+          <Text style={[styles.settingsListCaption, { color: colors.muted }]}>Settings</Text>
+
+          <SettingsGroupCard colors={colors}>
+            <SettingsNavRow
+              icon="person-outline"
+              title="Account & profile"
+              subtitle="Name, email, phone, photo"
+              showDivider={false}
+              active={settingsPanel === 'profile'}
+              colors={colors}
+              onPress={() => setSettingsPanel((p) => (p === 'profile' ? null : 'profile'))}
+            />
+            <SettingsNavRow
+              icon="document-text-outline"
+              title="Personal information"
+              subtitle="Interests, cuisines, lifestyle"
+              showDivider
+              active={settingsPanel === 'personal'}
+              colors={colors}
+              onPress={() => setSettingsPanel((p) => (p === 'personal' ? null : 'personal'))}
+            />
+            <SettingsNavRow
+              icon="heart-outline"
+              title="Partner & dates"
+              subtitle="Name, birthday, first met, together-for"
+              showDivider
+              active={settingsPanel === 'partner'}
+              colors={colors}
+              onPress={() => setSettingsPanel((p) => (p === 'partner' ? null : 'partner'))}
+            />
+            <SettingsNavRow
+              icon="color-palette-outline"
+              title="Appearance"
+              subtitle="Light or dark theme"
+              showDivider
+              active={settingsPanel === 'appearance'}
+              colors={colors}
+              onPress={() => setSettingsPanel((p) => (p === 'appearance' ? null : 'appearance'))}
+            />
+            <SettingsNavRow
+              icon="notifications-outline"
+              title="Notifications"
+              subtitle="Sounds, quiet hours, test ping"
+              showDivider
+              active={settingsPanel === 'notifications'}
+              colors={colors}
+              onPress={() => setSettingsPanel((p) => (p === 'notifications' ? null : 'notifications'))}
+            />
+          </SettingsGroupCard>
+
+          <SettingsGroupCard colors={colors}>
+            <SettingsNavRow
+              icon="home-outline"
+              title="Living situation"
+              subtitle={coupleMode === 'together' ? 'Living together' : 'Long distance'}
+              showDivider={false}
+              active={settingsPanel === 'relationship'}
+              colors={colors}
+              onPress={() => setSettingsPanel((p) => (p === 'relationship' ? null : 'relationship'))}
+            />
+            <SettingsNavRow
+              icon="link-outline"
+              title="Pairing & couple code"
+              subtitle={coupleCode ? `Code ${coupleCode}` : 'Not paired yet'}
+              showDivider
+              active={settingsPanel === 'pairing'}
+              colors={colors}
+              onPress={() => setSettingsPanel((p) => (p === 'pairing' ? null : 'pairing'))}
+            />
+            <SettingsNavRow
+              icon="log-out-outline"
+              title="Account & sign out"
+              subtitle="Leave this device"
+              showDivider
+              active={settingsPanel === 'account'}
+              colors={colors}
+              onPress={() => setSettingsPanel((p) => (p === 'account' ? null : 'account'))}
+            />
+          </SettingsGroupCard>
+
+        {settingsPanel === 'profile' && (
         <SoftCard>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -573,7 +751,9 @@ export function SettingsScreen() {
             </View>
           </View>
         </SoftCard>
+        )}
 
+        {settingsPanel === 'partner' && (
         <SoftCard>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -693,63 +873,9 @@ export function SettingsScreen() {
             </View>
           </View>
         </SoftCard>
+        )}
 
-        <Modal visible={monthModalOpen} transparent animationType="fade" onRequestClose={() => setMonthModalOpen(false)}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setMonthModalOpen(false)}>
-            <Pressable style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Month</Text>
-              <ScrollView style={{ maxHeight: 360 }}>
-                {MONTH_LABELS.map((label, idx) => (
-                  <Pressable
-                    key={label}
-                    onPress={() => {
-                      partnerFieldsTouchedRef.current = true;
-                      setPartnerBirthMonthDraft(idx + 1);
-                      setMonthModalOpen(false);
-                      setPartnerSavedNote('');
-                    }}
-                    style={styles.modalLine}
-                  >
-                    <Text style={[styles.modalLineText, { color: colors.text }]}>{label}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </Pressable>
-          </Pressable>
-        </Modal>
-
-        <Modal visible={dayModalOpen} transparent animationType="fade" onRequestClose={() => setDayModalOpen(false)}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setDayModalOpen(false)}>
-            <Pressable style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Day</Text>
-              <ScrollView style={{ maxHeight: 360 }}>
-                {Array.from(
-                  {
-                    length: daysInMonth(
-                      partnerBirthMonthDraft ?? 1,
-                      new Date().getFullYear()
-                    ),
-                  },
-                  (_, i) => i + 1
-                ).map((d) => (
-                  <Pressable
-                    key={d}
-                    onPress={() => {
-                      partnerFieldsTouchedRef.current = true;
-                      setPartnerBirthDayDraft(d);
-                      setDayModalOpen(false);
-                      setPartnerSavedNote('');
-                    }}
-                    style={styles.modalLine}
-                  >
-                    <Text style={[styles.modalLineText, { color: colors.text }]}>{d}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </Pressable>
-          </Pressable>
-        </Modal>
-
+        {settingsPanel === 'personal' && (
         <SoftCard>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -835,7 +961,9 @@ export function SettingsScreen() {
             </View>
           </View>
         </SoftCard>
+        )}
 
+        {settingsPanel === 'appearance' && (
         <SoftCard>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -868,7 +996,9 @@ export function SettingsScreen() {
             {appearanceSavedNote ? <Text style={[styles.savedNote, { color: colors.gold }]}>{appearanceSavedNote}</Text> : null}
           </View>
         </SoftCard>
+        )}
 
+        {settingsPanel === 'notifications' && (
         <SoftCard>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -1022,7 +1152,9 @@ export function SettingsScreen() {
             />
           </View>
         </SoftCard>
+        )}
 
+        {settingsPanel === 'relationship' && (
         <SoftCard>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -1038,7 +1170,9 @@ export function SettingsScreen() {
             <GoldButton title="Change status of living" onPress={() => setStatusOpen(true)} />
           </View>
         </SoftCard>
+        )}
 
+        {settingsPanel === 'pairing' && (
         <SoftCard>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -1085,7 +1219,9 @@ export function SettingsScreen() {
             </Pressable>
           </View>
         </SoftCard>
+        )}
 
+        {settingsPanel === 'account' && (
         <SoftCard>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -1115,7 +1251,65 @@ export function SettingsScreen() {
             </Text>
           </View>
         </SoftCard>
+        )}
         </ScrollView>
+
+        <Modal visible={monthModalOpen} transparent animationType="fade" onRequestClose={() => setMonthModalOpen(false)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setMonthModalOpen(false)}>
+            <Pressable style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Month</Text>
+              <ScrollView style={{ maxHeight: 360 }}>
+                {MONTH_LABELS.map((label, idx) => (
+                  <Pressable
+                    key={label}
+                    onPress={() => {
+                      partnerFieldsTouchedRef.current = true;
+                      setPartnerBirthMonthDraft(idx + 1);
+                      setMonthModalOpen(false);
+                      setPartnerSavedNote('');
+                    }}
+                    style={styles.modalLine}
+                  >
+                    <Text style={[styles.modalLineText, { color: colors.text }]}>{label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        <Modal visible={dayModalOpen} transparent animationType="fade" onRequestClose={() => setDayModalOpen(false)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setDayModalOpen(false)}>
+            <Pressable style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Day</Text>
+              <ScrollView style={{ maxHeight: 360 }}>
+                {Array.from(
+                  {
+                    length: daysInMonth(
+                      partnerBirthMonthDraft ?? 1,
+                      new Date().getFullYear()
+                    ),
+                  },
+                  (_, i) => i + 1
+                ).map((d) => (
+                  <Pressable
+                    key={d}
+                    onPress={() => {
+                      partnerFieldsTouchedRef.current = true;
+                      setPartnerBirthDayDraft(d);
+                      setDayModalOpen(false);
+                      setPartnerSavedNote('');
+                    }}
+                    style={styles.modalLine}
+                  >
+                    <Text style={[styles.modalLineText, { color: colors.text }]}>{d}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         <Pressable
           onPress={() => {
             if (navigation.canGoBack()) navigation.goBack();
@@ -1184,17 +1378,55 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-    paddingTop: 96,
+    paddingTop: 0,
     paddingBottom: 0,
   },
   root: {
     flex: 1,
   },
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 12,
     gap: 14,
+  },
+  profileHero: {
+    alignItems: 'center',
+    paddingBottom: 8,
+    gap: 4,
+  },
+  profileHeroAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileHeroName: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    marginTop: 6,
+  },
+  profileHeroSub: {
+    fontSize: 14,
+    fontWeight: '600',
+    maxWidth: '92%',
+  },
+  profileHeroPartner: {
+    fontSize: 13,
+    fontWeight: '700',
+    maxWidth: '92%',
+  },
+  settingsListCaption: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+    marginLeft: 4,
+    marginTop: 2,
   },
   section: {
     gap: 14,

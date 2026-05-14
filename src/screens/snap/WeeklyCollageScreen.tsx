@@ -26,37 +26,62 @@ function weekSundayKeys() {
   return keys;
 }
 
+function partnerWeekTitle(name: string | undefined) {
+  const p = name?.trim() || 'Partner';
+  return p.endsWith('s') ? `${p}' week` : `${p}'s week`;
+}
+
 export function WeeklyCollageScreen() {
   const { colors } = useTheme();
   const auth = useAuth();
   const myUid = auth.user?.uid ?? null;
-  const { coupleMode } = usePairing();
+  const { coupleMode, partnerName } = usePairing();
   const ld = coupleMode === 'longDistance';
   const { sendNotification } = useSettings();
-  const { dailyByDate, partnerSentByDate, collageLayout, setCollageLayout } = useSnap();
+  const { dailyByDate, collageLayout, setCollageLayout } = useSnap();
   const weekKeys = useMemo(() => weekSundayKeys(), []);
 
   const cells = useMemo(() => {
     return weekKeys.map((k) => {
       const dm = dailyByDate[k] ?? {};
       const mineUri = myUid ? dm[myUid]?.uri : undefined;
-      const partnerKey = Object.keys(dm).find((uid) => uid !== myUid);
-      const partnerUri = partnerKey ? dm[partnerKey]?.uri : undefined;
-      const partnerSent = !!partnerSentByDate[k] || !!partnerKey;
-      const both = !!mineUri && (!!partnerUri || !!partnerSentByDate[k]);
-      return {
-        key: k,
-        mineUri,
-        partnerUri,
-        partnerSent,
-        both,
-      };
+      const partnerKey = Object.keys(dm).find((uid) => uid !== myUid && uid !== '_legacy');
+      const legacy = dm['_legacy'];
+      const partnerUri =
+        (partnerKey ? dm[partnerKey]?.uri : undefined) ??
+        (legacy && legacy.senderUid && legacy.senderUid !== myUid ? legacy.uri : undefined);
+      return { key: k, mineUri, partnerUri };
     });
-  }, [weekKeys, dailyByDate, partnerSentByDate, myUid]);
+  }, [weekKeys, dailyByDate, myUid]);
 
   const onSimulateSunday = async () => {
     await sendNotification('Your weekly collage is ready — open Snap to see this week in one grid.');
   };
+
+  const gridExtras =
+    collageLayout === 'polaroid' ? { gap: 10, padding: 8 } : collageLayout === 'mosaic' ? { gap: 4 } : {};
+
+  const renderWeekRow = (uris: (string | undefined)[], showDateWhenEmpty: boolean) => (
+    <View style={[styles.weekRow, gridExtras]}>
+      {cells.map((day, i) => {
+        const uri = uris[i];
+        return (
+          <View key={day.key} style={[styles.dayCell, { borderColor: colors.border }]}>
+            {uri ? (
+              <Image source={{ uri }} style={styles.cellImg} resizeMode="cover" />
+            ) : (
+              <Text style={{ color: colors.muted, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>
+                {showDateWhenEmpty ? day.key.slice(5) : '—'}
+              </Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+
+  const mineRow = cells.map((d) => d.mineUri);
+  const partnerRow = cells.map((d) => d.partnerUri);
 
   return (
     <>
@@ -65,8 +90,8 @@ export function WeeklyCollageScreen() {
         <SoftCard>
           <Text style={[styles.sub, { color: colors.muted }]}>
             {ld
-              ? 'Every Sunday, a 3×3 reunion of your far-apart week (push in full build). Layout is for how you share it.'
-              : 'Every Sunday, a 3×3 look back at your week together (push in full build). Layout is for how you share it.'}
+              ? 'Two strips — your week and your partner’s — same Sunday-to-Saturday window (push in full build).'
+              : 'Two strips — your week and your partner’s — same Sunday-to-Saturday window together.'}
           </Text>
           <Text style={[styles.h, { color: colors.text }]}>Layout</Text>
           <View style={styles.chips}>
@@ -92,54 +117,20 @@ export function WeeklyCollageScreen() {
         </SoftCard>
 
         <SoftCard>
-          <Text style={[styles.h, { color: colors.text }]}>This week (live preview)</Text>
-          <View
-            style={[
-              styles.grid,
-              collageLayout === 'polaroid' && { gap: 10, padding: 8 },
-              collageLayout === 'mosaic' && { gap: 4 },
-            ]}
-          >
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => {
-              if (i >= 7) {
-                return (
-                  <View key={`pad-${i}`} style={[styles.cell, { borderColor: colors.border, opacity: 0.35 }]}>
-                    <Text style={{ color: colors.muted, fontSize: 10 }}>—</Text>
-                  </View>
-                );
-              }
-              const day = cells[i]!;
-              const split = day.both && day.mineUri && day.partnerUri;
-              return (
-                <View key={day.key} style={[styles.cell, { borderColor: colors.border }]}>
-                  {split ? (
-                    <View style={styles.split}>
-                      <Image source={{ uri: day.mineUri! }} style={styles.half} resizeMode="cover" />
-                      {day.partnerUri ? (
-                        <Image
-                          source={{ uri: day.partnerUri }}
-                          style={styles.half}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <View style={[styles.half, styles.ph, { borderLeftWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }]}>
-                          <Text style={{ color: colors.muted, fontSize: 9, textAlign: 'center', padding: 4 }}>
-                            Partner snap
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  ) : day.mineUri ? (
-                    <Image source={{ uri: day.mineUri }} style={styles.full} resizeMode="cover" />
-                  ) : (
-                    <Text style={{ color: colors.muted, fontSize: 10 }}>{day.key.slice(5)}</Text>
-                  )}
-                </View>
-              );
-            })}
-          </View>
+          <Text style={[styles.h, { color: colors.text }]}>Your snaps this week</Text>
+          {renderWeekRow(mineRow, true)}
           <Text style={[styles.micro, { color: colors.muted }]}>
-            Split cells when both partners snapped the same day. Empty slots pad the 3×3.
+            Sun → Sat · your daily snap for each day (empty slot if none yet).
+          </Text>
+        </SoftCard>
+
+        <SoftCard>
+          <Text style={[styles.h, { color: colors.text }]}>{partnerWeekTitle(partnerName)}</Text>
+          {renderWeekRow(partnerRow, false)}
+          <Text style={[styles.micro, { color: colors.muted }]}>
+            {partnerName?.trim()
+              ? `${partnerName.trim()}'s snaps when they’ve sent for that day.`
+              : 'Partner snaps when they’ve sent for that day.'}
           </Text>
         </SoftCard>
 
@@ -168,15 +159,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     overflow: 'hidden',
   },
-  grid: {
+  weekRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: 6,
     marginTop: 10,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
-  cell: {
-    width: '30%',
+  dayCell: {
+    flex: 1,
+    minWidth: 0,
     aspectRatio: 1,
     borderWidth: 1,
     borderRadius: 8,
@@ -184,13 +176,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  split: { flex: 1, flexDirection: 'row', width: '100%', height: '100%' },
-  half: { flex: 1, height: '100%' },
-  full: { width: '100%', height: '100%' },
-  ph: {
-    backgroundColor: 'rgba(231,199,125,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  cellImg: { width: '100%', height: '100%' },
   micro: { fontSize: 11, fontWeight: '600', marginTop: 10 },
 });

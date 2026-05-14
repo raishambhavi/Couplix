@@ -2,9 +2,16 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
+import { deferFirestoreUnsubscribe } from '../config/deferFirestoreUnsubscribe';
 import { firebaseDb } from '../config/firebase';
 import { FIRESTORE_SYNC_FLAGS } from '../config/firestoreSyncFlags';
-import { daySeedIndex, getTaskList, taskKey } from '../data/coupleTasks';
+import {
+  cadenceForDateKey,
+  daySeedIndex,
+  getTaskList,
+  taskKey,
+  type TaskCadence,
+} from '../data/coupleTasks';
 import { useAuth } from './AuthContext';
 import { usePairing } from './PairingContext';
 
@@ -19,6 +26,7 @@ type ModeBucket = {
 
 type TaskContextValue = {
   list: readonly string[];
+  taskCadence: TaskCadence;
   activeIndex: number;
   currentTaskText: string;
   currentTaskId: string;
@@ -56,7 +64,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     [coupleCode]
   );
 
-  const list = useMemo(() => getTaskList(coupleMode), [coupleMode]);
+  const todayKey = dateKey();
+  const taskCadence = useMemo(() => cadenceForDateKey(todayKey), [todayKey]);
+  const list = useMemo(() => getTaskList(coupleMode, taskCadence), [coupleMode, taskCadence]);
 
   useEffect(() => {
     modeStateRef.current = modeState;
@@ -112,7 +122,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       },
       () => setHydrated(true)
     );
-    return () => unsub();
+    return () => deferFirestoreUnsubscribe(unsub);
   }, [coupleCode, user, taskDocRef, coupleMembershipReady]);
 
   useEffect(() => {
@@ -129,9 +139,10 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
   const ensureCalendarDay = useCallback(() => {
     const tk = dateKey();
+    const cadence = cadenceForDateKey(tk);
     setModeState((prev) => {
-      const lenT = getTaskList('together').length;
-      const lenL = getTaskList('longDistance').length;
+      const lenT = getTaskList('together', cadence).length;
+      const lenL = getTaskList('longDistance', cadence).length;
       let next = { ...prev };
       if (prev.together.focusDate !== tk) {
         next = {
@@ -153,7 +164,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     coupleMode === 'together' ? modeState.together.activeIndex : modeState.longDistance.activeIndex;
 
   const safeIndex = list.length ? Math.min(Math.max(0, activeIndex), list.length - 1) : 0;
-  const currentTaskId = taskKey(coupleMode, safeIndex);
+  const currentTaskId = taskKey(coupleMode, taskCadence, safeIndex);
   const currentTaskText = list.length ? list[safeIndex]! : '';
 
   const completion = useMemo(() => {
@@ -166,7 +177,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const dualCompleteCount = useMemo(() => {
     let n = 0;
     for (let i = 0; i < list.length; i++) {
-      const id = taskKey(coupleMode, i);
+      const id = taskKey(coupleMode, taskCadence, i);
       const co = completions[id];
       if (coupleMode === 'together') {
         if (co?.me) n++;
@@ -175,7 +186,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       }
     }
     return n;
-  }, [list, coupleMode, completions]);
+  }, [list, coupleMode, taskCadence, completions]);
 
   const coupleScorePercent = useMemo(() => {
     if (!list.length) return 0;
@@ -215,6 +226,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<TaskContextValue>(
     () => ({
       list,
+      taskCadence,
       activeIndex: safeIndex,
       currentTaskText,
       currentTaskId,
@@ -228,6 +240,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       list,
+      taskCadence,
       safeIndex,
       currentTaskText,
       currentTaskId,

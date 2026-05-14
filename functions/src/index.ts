@@ -384,3 +384,82 @@ export const onTogetherStateWritten = region.firestore
       data: { type: 'together_sync', togetherTarget },
     });
   });
+
+/** Question of the Day: notify partner when answers change for today's UTC date. */
+export const onRitualsStateWritten = region.firestore
+  .document('couples/{coupleCode}/state/rituals')
+  .onWrite(async (change, context) => {
+    if (!change.after.exists) return;
+    const coupleCode = context.params.coupleCode as string;
+    const before = change.before.exists ? change.before.data()! : {};
+    const after = change.after.data()!;
+    const qotdDateKey = typeof after.qotdDateKey === 'string' ? after.qotdDateKey : '';
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    if (!qotdDateKey || qotdDateKey !== todayUtc) return;
+
+    const beforeAns = (before.qotdAnswers ?? {}) as Record<string, unknown>;
+    const afterAns = (after.qotdAnswers ?? {}) as Record<string, unknown>;
+    const trim = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+
+    for (const uid of Object.keys(afterAns)) {
+      const newV = trim(afterAns[uid]);
+      const oldV = trim(beforeAns[uid]);
+      if (!newV || oldV === newV) continue;
+      if (oldV.length > 0) continue;
+
+      let othersHadBefore = false;
+      for (const [ouid, ov] of Object.entries(beforeAns)) {
+        if (ouid === uid) continue;
+        if (trim(ov).length > 0) {
+          othersHadBefore = true;
+          break;
+        }
+      }
+
+      const senderName = await getUserDisplayName(uid);
+      const body = othersHadBefore
+        ? `${senderName} also answered today's question — open Rituals to read both answers.`
+        : `${senderName} answered Question of the Day — share your answer and see what they think.`;
+
+      await sendPartnerPush({
+        coupleCode,
+        senderUid: uid,
+        title: 'Couplix · Question of the Day',
+        body,
+        data: { type: 'qotd_answer', dateKey: qotdDateKey },
+      });
+    }
+
+    const beforeTopics = (before.qotdTopicByUid ?? {}) as Record<string, unknown>;
+    const afterTopics = (after.qotdTopicByUid ?? {}) as Record<string, unknown>;
+    for (const uid of Object.keys(afterTopics)) {
+      const newT = trim(afterTopics[uid]);
+      const oldT = trim(beforeTopics[uid]);
+      if (!newT || oldT === newT) continue;
+      const senderName = await getUserDisplayName(uid);
+      await sendPartnerPush({
+        coupleCode,
+        senderUid: uid,
+        title: 'Couplix · Question of the Day',
+        body: `${senderName} picked a topic for today — open Rituals to answer on their topic and unlock the reveal.`,
+        data: { type: 'qotd_topic', dateKey: qotdDateKey },
+      });
+    }
+
+    const beforeMir = (before.qotdMirrorAnswers ?? {}) as Record<string, unknown>;
+    const afterMir = (after.qotdMirrorAnswers ?? {}) as Record<string, unknown>;
+    for (const uid of Object.keys(afterMir)) {
+      const newV = trim(afterMir[uid]);
+      const oldV = trim(beforeMir[uid]);
+      if (!newV || oldV === newV) continue;
+      if (oldV.length > 0) continue;
+      const senderName = await getUserDisplayName(uid);
+      await sendPartnerPush({
+        coupleCode,
+        senderUid: uid,
+        title: 'Couplix · Question of the Day',
+        body: `${senderName} answered on your topic too — open Rituals for the cross reveal.`,
+        data: { type: 'qotd_mirror', dateKey: qotdDateKey },
+      });
+    }
+  });

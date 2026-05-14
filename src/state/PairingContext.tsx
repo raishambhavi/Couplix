@@ -12,6 +12,7 @@ import {
   type FirestoreError,
 } from 'firebase/firestore';
 
+import { deferFirestoreUnsubscribe } from '../config/deferFirestoreUnsubscribe';
 import { firebaseAuth, firebaseDb } from '../config/firebase';
 import { FIRESTORE_SYNC_FLAGS } from '../config/firestoreSyncFlags';
 import type { CoupleMode } from '../data/dailyDares';
@@ -170,6 +171,8 @@ type PairingContextValue = {
    * before any couple-scoped read). Prevents permission-denied races on snapshot listeners.
    */
   coupleMembershipReady: boolean;
+  /** Partner Firebase uid when paired and membership is ready; null if unknown or solo. */
+  partnerUid: string | null;
   presenceStatus: PresenceStatus;
   setPresenceStatus: (status: PresenceStatus) => void;
   /** Living together vs long distance — drives rituals, prompts, and copy across the app. */
@@ -364,19 +367,30 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setPartnerUid(null);
-    const col = collection(firebaseDb, 'couples', coupleCode, 'members');
-    const unsub = onSnapshot(
-      col,
-      (snap) => {
-        const mine = user.uid;
-        const other = snap.docs.map((d) => d.id).find((id) => id !== mine);
-        // Do not skip cache-only snapshots: waiting for fromCache=false often left partnerUid null
-        // indefinitely (partner never “recognized”) when only persisted/local updates arrived.
-        setPartnerUid(other ?? null);
-      },
-      logPairingSnapshotError('couples/.../members')
-    );
-    return () => unsub();
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    // Defer snapshot: subscribing in the same turn as membership writes / verify races Firestore’s
+    // target state machine (INTERNAL ASSERTION ca9 / b815 on RN). See firebase-js-sdk#9267.
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      const col = collection(firebaseDb, 'couples', coupleCode, 'members');
+      unsub = onSnapshot(
+        col,
+        (snap) => {
+          const mine = user.uid;
+          const other = snap.docs.map((d) => d.id).find((id) => id !== mine);
+          // Do not skip cache-only snapshots: waiting for fromCache=false often left partnerUid null
+          // indefinitely (partner never “recognized”) when only persisted/local updates arrived.
+          setPartnerUid(other ?? null);
+        },
+        logPairingSnapshotError('couples/.../members')
+      );
+    }, 150);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      deferFirestoreUnsubscribe(unsub);
+    };
   }, [coupleCode, user, coupleMembershipReady]);
 
   useEffect(() => {
@@ -406,7 +420,7 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
       },
       logPairingSnapshotError('couples/.../public_profiles')
     );
-    return () => unsub();
+    return () => deferFirestoreUnsubscribe(unsub);
   }, [coupleCode, partnerUid, coupleMembershipReady]);
 
   useEffect(() => {
@@ -503,7 +517,7 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
       },
       logPairingSnapshotError('state/pairing')
     );
-    return () => unsub();
+    return () => deferFirestoreUnsubscribe(unsub);
   }, [coupleCode, user, pairingDocRef, coupleMembershipReady]);
 
   useEffect(() => {
@@ -701,6 +715,7 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
       regenerateCoupleCode,
       isPaired,
       coupleMembershipReady,
+      partnerUid,
       presenceStatus,
       setPresenceStatus: persistPresence,
       coupleMode,
@@ -725,6 +740,7 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
       regenerateCoupleCode,
       isPaired,
       coupleMembershipReady,
+      partnerUid,
       presenceStatus,
       persistPresence,
       coupleMode,

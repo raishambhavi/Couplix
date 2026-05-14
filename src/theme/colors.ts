@@ -1,8 +1,10 @@
 export type ThemeMode = 'dark' | 'light';
 
-type ThemeColors = {
+export type ThemeColors = {
   mode: ThemeMode;
   background: string;
+  /** Tab header / tab bar — same family as AmbientBackground base / pale top wash (light: #FFF7F3). */
+  chromeBackground: string;
   surface: string;
   text: string;
   muted: string;
@@ -16,6 +18,7 @@ type ThemeColors = {
 export const colorsDark: ThemeColors = {
   mode: 'dark',
   background: '#0B0A0F',
+  chromeBackground: '#0B0A0F',
   surface: '#14121B',
   text: '#F5F2EB',
   muted: '#A79F9B',
@@ -29,6 +32,7 @@ export const colorsDark: ThemeColors = {
 export const colorsLight: ThemeColors = {
   mode: 'light',
   background: '#FFF7F3',
+  chromeBackground: '#FFF7F3',
   surface: '#FFFFFF',
   text: '#17131A',
   muted: '#6B5F67',

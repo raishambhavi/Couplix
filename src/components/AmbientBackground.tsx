@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { usePairing } from '../state/PairingContext';
 import { useTheme } from '../state/ThemeContext';
+import { ambientRoseSkyColors } from '../theme/ambientGradients';
 
 /** Fixed % positions so hearts read as a soft field (deterministic, no layout jump). */
 const HEART_FIELD: { top: `${number}%`; left: `${number}%`; size: number; opacity: number }[] = [
@@ -71,10 +72,11 @@ export function AmbientBackground() {
     ? 'rgba(255,172,114,0.12)'
     : 'rgba(255,172,114,0.08)';
 
-  const roseWash =
-    colors.mode === 'dark'
-      ? (['rgba(236,72,153,0.28)', 'rgba(168,85,247,0.08)', 'transparent'] as const)
-      : (['rgba(252,231,243,0.95)', 'rgba(255,246,250,0.5)', 'transparent'] as const);
+  const roseWash = ambientRoseSkyColors(colors.mode) as readonly [
+    string,
+    string,
+    string,
+  ];
 
   const heartColor = colors.mode === 'dark' ? '#F9A8D4' : '#EC4899';
 

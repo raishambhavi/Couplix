@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,12 +9,12 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -58,30 +58,34 @@ export function DailySnapScreen() {
   const insets = useSafeAreaInsets();
   const { coupleMode, coupleCode } = usePairing();
   const ld = coupleMode === 'longDistance';
-  const {
-    todayKey,
-    dailyByDate,
-    partnerSentByDate,
-    setDailySnap,
-    setPartnerSent,
-  } = useSnap();
+  const { todayKey, dailyByDate, partnerSentByDate, setDailySnap } = useSnap();
   /** Picked from camera/library but not yet committed with Send */
   const [pendingUri, setPendingUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [caption, setCaption] = useState('');
   const [filterCameraOpen, setFilterCameraOpen] = useState(false);
+  /** After send, hide today's sent image until a new capture (Snapchat-style blank canvas). */
+  const [hideLastSentPreview, setHideLastSentPreview] = useState(false);
   const myUid = auth.user?.uid ?? null;
   const streak = useSnapStreak(dailyByDate, partnerSentByDate, myUid);
   const weekKeys = useMemo(() => lastNDaysKeys(7), []);
 
   const dayMapToday = dailyByDate[todayKey] ?? {};
   const mine = myUid ? (dayMapToday[myUid] ?? dayMapToday['_legacy'] ?? null) : null;
-  const partnerUid = Object.keys(dayMapToday).find((uid) => uid !== myUid && uid !== '_legacy');
-  const partnerSnap = partnerUid ? dayMapToday[partnerUid] ?? null : null;
-  const partnerToday = partnerSentByDate[todayKey];
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS === 'web') return undefined;
+      const id = setTimeout(() => setFilterCameraOpen(true), 280);
+      return () => {
+        clearTimeout(id);
+        setFilterCameraOpen(false);
+      };
+    }, [])
+  );
 
   React.useEffect(() => {
     setPendingUri(null);
+    setHideLastSentPreview(false);
   }, [todayKey]);
 
   React.useEffect(() => {
@@ -90,7 +94,7 @@ export function DailySnapScreen() {
     }
   }, [todayKey, pendingUri, mine?.caption, mine?.uri]);
 
-  const previewUri = pendingUri ?? mine?.uri ?? null;
+  const previewUri = pendingUri ?? (hideLastSentPreview ? null : mine?.uri ?? null);
   const hasUnsentDraft = !!pendingUri;
 
   const pickPhoto = async (source: 'camera' | 'library') => {
@@ -102,6 +106,7 @@ export function DailySnapScreen() {
       return;
     }
     setPendingUri(r.uri);
+    setHideLastSentPreview(false);
     await Haptics.selectionAsync().catch(() => {});
   };
 
@@ -137,8 +142,21 @@ export function DailySnapScreen() {
           senderName: auth.profile?.displayName ?? undefined,
         });
         setPendingUri(null);
+        setCaption('');
+        setHideLastSentPreview(true);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('', 'Great! Send a snap tomorrow to maintain the streak.');
+        Alert.alert(
+          'Snap sent!',
+          'Your moment is on its way. Ready for another frame?',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                if (Platform.OS !== 'web') setFilterCameraOpen(true);
+              },
+            },
+          ]
+        );
         // Partner push is sent by Cloud Function onSnapStateWritten (deploy functions).
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -162,7 +180,8 @@ export function DailySnapScreen() {
     }
   };
 
-  const canSend = (!!pendingUri || !!mine?.uri) && !uploading;
+  const canSend =
+    (!!pendingUri || (!!mine?.uri && !hideLastSentPreview)) && !uploading;
 
   return (
     <>
@@ -184,17 +203,28 @@ export function DailySnapScreen() {
             <SoftCard>
               <Text style={[styles.sub, { color: colors.muted }]}>
                 {ld
-                  ? 'One photo per day each — open the camera, swipe filters like your favorite stories app, then send.'
-                  : 'One photo per day each — open the camera, swipe filters, then send. Still no heavy editing.'}
+                  ? 'Camera opens for you — swipe filters, capture, then send. One snap per day (you can replace yours until you’re happy).'
+                  : 'Camera opens for you — pick a filter, snap, send. One per day at home — replace anytime before midnight.'}
               </Text>
 
               <Text style={[styles.h, { color: colors.text }]}>Your snap today</Text>
               {previewUri ? (
                 <Image key={previewUri} source={{ uri: previewUri }} style={styles.bleed} resizeMode="cover" />
               ) : (
-                <View style={[styles.bleed, styles.placeholder, { borderColor: colors.border }]}>
-                  <Text style={{ color: colors.muted, fontWeight: '600' }}>No snap yet today</Text>
-                </View>
+                <Pressable
+                  onPress={() => !uploading && (Platform.OS === 'web' ? void pickPhoto('camera') : setFilterCameraOpen(true))}
+                  disabled={uploading}
+                  style={({ pressed }) => [
+                    styles.bleed,
+                    styles.placeholder,
+                    { borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  <Ionicons name="camera-outline" size={40} color={colors.muted} />
+                  <Text style={{ color: colors.muted, fontWeight: '700', marginTop: 8, textAlign: 'center' }}>
+                    Tap to open camera
+                  </Text>
+                </Pressable>
               )}
               {hasUnsentDraft ? (
                 <View style={styles.draftBanner}>
@@ -252,7 +282,7 @@ export function DailySnapScreen() {
                 </View>
               </View>
               <GoldButton
-                title="Click photo"
+                title="Open camera & filters"
                 onPress={() => {
                   if (Platform.OS === 'web') {
                     void pickPhoto('camera');
@@ -269,29 +299,6 @@ export function DailySnapScreen() {
                 </Pressable>
               ) : null}
             </SoftCard>
-
-        <SoftCard>
-          <Text style={[styles.h, { color: colors.text }]}>Partner&apos;s snap</Text>
-          <Text style={[styles.sub, { color: colors.muted }]}>
-            {ld
-              ? 'Their snap lands full-bleed when it arrives — built for long-distance surprise.'
-              : 'Their snap lands full-bleed — a quiet window into their day at home.'}
-          </Text>
-          {partnerSnap?.uri ? (
-            <Image key={partnerSnap.uri} source={{ uri: partnerSnap.uri }} style={styles.bleed} resizeMode="cover" />
-          ) : (
-            <View style={[styles.bleed, styles.placeholder, { borderColor: colors.border }]}>
-              <Text style={{ color: colors.muted, fontWeight: '600', textAlign: 'center' }}>
-                {partnerToday ? 'Partner sent today — sync in progress.' : 'Waiting for their daily snap.'}
-              </Text>
-            </View>
-          )}
-          {partnerSnap?.uri ? (
-            <Text style={[styles.sentHint, { color: colors.muted }]}>
-              {partnerSnap.senderName || 'Partner'} sent at {formatSentTime(partnerSnap.at)}
-            </Text>
-          ) : null}
-        </SoftCard>
 
         <SoftCard>
           <Text style={[styles.h, { color: colors.text }]}>Dual streak</Text>
@@ -320,15 +327,6 @@ export function DailySnapScreen() {
           <Text style={[styles.micro, { color: colors.muted }]}>
             Dots = last 7 days · gold fill when both of you sent
           </Text>
-          <View style={styles.simRow}>
-            <Text style={[styles.micro, { color: colors.text, flex: 1 }]}>
-              Simulate partner sent today (MVP)
-            </Text>
-            <Switch
-              value={!!partnerSentByDate[todayKey]}
-              onValueChange={(v) => setPartnerSent(todayKey, v)}
-            />
-          </View>
         </SoftCard>
           </ScrollView>
         </View>
@@ -339,6 +337,7 @@ export function DailySnapScreen() {
         onClose={() => setFilterCameraOpen(false)}
         onPhotoTaken={(uri) => {
           setPendingUri(uri);
+          setHideLastSentPreview(false);
           void Haptics.selectionAsync().catch(() => {});
         }}
       />
@@ -390,5 +389,4 @@ const styles = StyleSheet.create({
   dotRow: { flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'center' },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   micro: { fontSize: 11, fontWeight: '600', marginTop: 8 },
-  simRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
 });

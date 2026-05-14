@@ -4,6 +4,7 @@ import {
   Alert,
   Dimensions,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -162,8 +163,13 @@ export function FilteredCameraModal({ visible, onClose, onPhotoTaken }: Props) {
     if (!cameraRef.current || !ready || busy || pendingExport) return;
     setBusy(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.95 });
+      const cam = cameraRef.current;
+      let photo = await cam.takePictureAsync({ quality: 0.9 });
+      if (!photo?.uri && Platform.OS === 'ios') {
+        photo = await cam.takePictureAsync({ quality: 1, skipProcessing: true });
+      }
       if (!photo?.uri) {
+        Alert.alert('Camera', 'Could not capture a photo. Try flipping the camera once, then back.');
         setBusy(false);
         return;
       }
@@ -185,7 +191,30 @@ export function FilteredCameraModal({ visible, onClose, onPhotoTaken }: Props) {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert('Camera', msg);
+      if (cameraRef.current && Platform.OS === 'ios' && !/skip/i.test(msg)) {
+        try {
+          const photo = await cameraRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
+          if (photo?.uri) {
+            const resized = await resizeToMaxEdge(photo.uri, photo.width, photo.height, 1600);
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+            if (filterId === 'original') {
+              onPhotoTaken(resized.uri);
+              dismiss();
+              return;
+            }
+            setPendingExport({
+              uri: resized.uri,
+              width: resized.width,
+              height: resized.height,
+              filterId,
+            });
+            return;
+          }
+        } catch {
+          // fall through to alert below
+        }
+      }
+      Alert.alert('Camera', msg || 'Could not capture photo.');
       setBusy(false);
     }
   };
@@ -224,10 +253,13 @@ export function FilteredCameraModal({ visible, onClose, onPhotoTaken }: Props) {
         {permission?.granted ? (
           <View style={styles.cameraWrap}>
             <CameraView
+              key={facing}
               ref={cameraRef}
               style={styles.camera}
               facing={facing}
               mode="picture"
+              active={visible}
+              animateShutter={false}
               onCameraReady={() => setReady(true)}
             />
             <View
@@ -248,7 +280,7 @@ export function FilteredCameraModal({ visible, onClose, onPhotoTaken }: Props) {
         )}
 
         <View style={[styles.filtersSection, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
-          <Text style={[styles.filtersLabel, { color: colors.muted }]}>Swipe filters</Text>
+          <Text style={[styles.filtersLabel, { color: colors.muted }]}>Tap a filter</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}

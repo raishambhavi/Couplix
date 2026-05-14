@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updateEmail,
@@ -25,6 +26,8 @@ export type UserProfile = {
   phoneNumber: string | null;
   createdAt: number;
   updatedAt: number;
+  /** Your date of birth (ms); optional — used for local birthday reminders. */
+  dateOfBirthMs?: number | null;
   /** Expo push token for partner notifications (Cloud Functions). */
   expoPushToken?: string | null;
   expoPushTokenUpdatedAt?: number | null;
@@ -51,6 +54,8 @@ function mergeAuthIntoProfile(u: User, p: UserProfile): UserProfile {
 
 function coerceProfileFromFirestore(data: Record<string, unknown> | undefined, u: User, fallbackNow: number): UserProfile {
   const d = data ?? {};
+  const dateOfBirthMs =
+    typeof d.dateOfBirthMs === 'number' && Number.isFinite(d.dateOfBirthMs) ? d.dateOfBirthMs : undefined;
   return {
     uid: typeof d.uid === 'string' ? d.uid : u.uid,
     email: typeof d.email === 'string' ? d.email : u.email ?? null,
@@ -59,6 +64,7 @@ function coerceProfileFromFirestore(data: Record<string, unknown> | undefined, u
     phoneNumber: typeof d.phoneNumber === 'string' ? d.phoneNumber : null,
     createdAt: typeof d.createdAt === 'number' ? d.createdAt : fallbackNow,
     updatedAt: typeof d.updatedAt === 'number' ? d.updatedAt : fallbackNow,
+    ...(dateOfBirthMs !== undefined ? { dateOfBirthMs } : {}),
     expoPushToken: typeof d.expoPushToken === 'string' ? d.expoPushToken : undefined,
     expoPushTokenUpdatedAt: typeof d.expoPushTokenUpdatedAt === 'number' ? d.expoPushTokenUpdatedAt : undefined,
   };
@@ -79,6 +85,9 @@ function profilePayloadForFirestore(u: User, p: UserProfile): Record<string, unk
     o.expoPushToken = p.expoPushToken;
     if (p.expoPushTokenUpdatedAt != null) o.expoPushTokenUpdatedAt = p.expoPushTokenUpdatedAt;
   }
+  if (p.dateOfBirthMs != null && typeof p.dateOfBirthMs === 'number' && Number.isFinite(p.dateOfBirthMs)) {
+    o.dateOfBirthMs = p.dateOfBirthMs;
+  }
   return o;
 }
 
@@ -97,6 +106,10 @@ type AuthContextValue = {
   setPhotoURL: (url: string) => Promise<void>;
   updateEmail: (email: string) => Promise<void>;
   setPhoneNumber: (phone: string) => Promise<void>;
+  /** Calendar date of birth (local midnight ms) or clear when null. */
+  setDateOfBirthMs: (ms: number | null) => Promise<void>;
+  /** Sends Firebase password-reset email to the signed-in account’s email. */
+  sendPasswordResetToAccountEmail: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -118,6 +131,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
+      // Do not block initial app render on profile I/O.
+      // If Firestore is slow/offline, the app should still open for the signed-in user.
+      setLoading(false);
 
       try {
         let authUser: User = u;
@@ -170,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updatedAt: Date.now(),
         });
       } finally {
-        if (authSessionUidRef.current === u.uid) setLoading(false);
+        // loading is already cleared above for signed-in users.
       }
     });
     return () => unsub();
@@ -202,8 +218,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       await signOut(firebaseAuth);
     } catch (e) {
-      setLoading(false);
       throw e;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -333,6 +350,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setDateOfBirthMsFn = async (ms: number | null) => {
+    const u = firebaseAuth.currentUser;
+    if (!u) return;
+    const now = Date.now();
+    setProfile((prev) =>
+      prev ? { ...prev, ...(ms != null ? { dateOfBirthMs: ms } : { dateOfBirthMs: undefined }), updatedAt: now } : prev
+    );
+    try {
+      if (ms == null) {
+        await updateDoc(profileDoc(u.uid), { dateOfBirthMs: deleteField(), updatedAt: now });
+      } else {
+        const snap = await getDoc(profileDoc(u.uid));
+        const raw = snap.exists()
+          ? coerceProfileFromFirestore(snap.data() as Record<string, unknown>, u, now)
+          : ({
+              uid: u.uid,
+              email: u.email ?? null,
+              displayName: null,
+              photoURL: null,
+              phoneNumber: null,
+              createdAt: now,
+              updatedAt: now,
+            } as UserProfile);
+        await persistUserProfileDoc(u, mergeAuthIntoProfile(u, { ...raw, dateOfBirthMs: ms, updatedAt: now }));
+      }
+    } catch (e) {
+      if (__DEV__) console.warn('[Auth] Firestore dateOfBirthMs sync failed:', e);
+    }
+  };
+
+  const sendPasswordResetToAccountEmailFn = async () => {
+    const u = firebaseAuth.currentUser;
+    const email = (u?.email ?? '').trim();
+    if (!email) {
+      throw new Error('No email address on this account. Add one in Manage profile first.');
+    }
+    await sendPasswordResetEmail(firebaseAuth, email);
+  };
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -345,6 +401,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPhotoURL: setPhotoURLFn,
       updateEmail: updateEmailFn,
       setPhoneNumber: setPhoneNumberFn,
+      setDateOfBirthMs: setDateOfBirthMsFn,
+      sendPasswordResetToAccountEmail: sendPasswordResetToAccountEmailFn,
     }),
     [user, profile, loading]
   );

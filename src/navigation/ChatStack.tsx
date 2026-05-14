@@ -2,8 +2,10 @@ import React from 'react';
 import { Pressable } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChatScreen } from '../screens/chat/ChatScreen';
+import { couplixMainHeaderScreenOptions } from './couplixHeaderScreenOptions';
 import { useTheme } from '../state/ThemeContext';
 
 export type ChatStackParamList = {
@@ -14,13 +16,11 @@ const Stack = createNativeStackNavigator<ChatStackParamList>();
 
 export function ChatStackNavigator() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: true,
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.text,
-        headerShadowVisible: false,
+        ...couplixMainHeaderScreenOptions({ insets, colors }),
         contentStyle: { backgroundColor: colors.background },
       }}
     >

@@ -12,13 +12,6 @@ import { useTheme } from '../../state/ThemeContext';
 
 const featureCards = [
   {
-    key: 'Heartbeat',
-    title: 'Heartbeat Share',
-    icon: 'pulse',
-    subTogether: 'Tap & hold — feel close in the same home',
-    subLD: 'Tap & hold — sync pulse across the distance',
-  },
-  {
     key: 'Nudge',
     title: 'Nudge',
     icon: 'radio',
@@ -27,17 +20,10 @@ const featureCards = [
   },
   {
     key: 'SoftLocation',
-    title: 'Soft Location',
-    icon: 'location',
-    subTogether: 'Fuzzy zones — home, out, date night',
-    subLD: 'Fuzzy zones in different cities — no exact GPS',
-  },
-  {
-    key: 'SharedSky',
-    title: 'Shared Sky',
+    title: 'Location & sky',
     icon: 'partly-sunny',
-    subTogether: 'Compare weather & daylight from two windows',
-    subLD: 'Their sky vs yours — daylight and weather apart',
+    subTogether: 'Your sky and soft zone — one send to your partner',
+    subLD: 'Weather mood plus fuzzy location — one send together',
   },
   {
     key: 'MoodSync',
@@ -45,6 +31,13 @@ const featureCards = [
     icon: 'happy',
     subTogether: 'Emotional dial when you share a space',
     subLD: 'Emotional dial when you’re far apart',
+  },
+  {
+    key: 'SharedCalendar',
+    title: 'Shared Calendar',
+    icon: 'calendar',
+    subTogether: 'See when you’re both free — work or personal calendars',
+    subLD: 'Find mutual free time across time zones and busy calendars',
   },
 ] as const;
 
@@ -64,8 +57,8 @@ export function MoodHubScreen() {
           title="Mood"
           subtitle={
             ld
-              ? 'Tuned for long distance — same five features, different emphasis.'
-              : 'Tuned for life under one roof — same five features, different emphasis.'
+              ? 'Tuned for long distance — four mood tools, different emphasis.'
+              : 'Tuned for life under one roof — four mood tools, different emphasis.'
           }
         />
 
@@ -109,7 +102,7 @@ export function MoodHubScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: 20, paddingTop: 108, paddingBottom: 32, gap: 14 },
+  container: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, gap: 14 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

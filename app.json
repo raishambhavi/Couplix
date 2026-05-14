@@ -4,16 +4,27 @@
     "slug": "couplix",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./Couplix Icon.png",
+    "icon": "./assets/couplix-header-mark-transparent.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./Couplix Icon.png",
+      "image": "./assets/couplix-splash-full.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0B0A0F"
+      "backgroundColor": "#000000"
     },
     "ios": {
+      "userInterfaceStyle": "dark",
+      "splash": {
+        "image": "./assets/couplix-splash-full.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000",
+        "dark": {
+          "image": "./assets/couplix-splash-full.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      },
       "bundleIdentifier": "com.raishambhavi.couplix",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -26,9 +37,19 @@
     },
     "android": {
       "package": "com.raishambhavi.couplix",
+      "splash": {
+        "image": "./assets/couplix-splash-full.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000",
+        "dark": {
+          "image": "./assets/couplix-splash-full.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      },
       "adaptiveIcon": {
-        "backgroundColor": "#0B0A0F",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/couplix-header-mark-transparent.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
@@ -38,6 +59,19 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/couplix-splash-full.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000",
+          "dark": {
+            "image": "./assets/couplix-splash-full.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
       "expo-font",
       "@react-native-community/datetimepicker",
       [

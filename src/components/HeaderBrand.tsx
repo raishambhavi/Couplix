@@ -4,7 +4,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../state/ThemeContext';
 
 export function HeaderBrand({
-  title = 'Couplix',
+  title = 'CoupliX',
   onPressIcon,
 }: {
   title?: string;
@@ -16,13 +16,17 @@ export function HeaderBrand({
     <View style={styles.wrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Open Couplix index"
+        accessibilityLabel="Open CoupliX index"
         onPress={onPressIcon}
         disabled={!onPressIcon}
         style={({ pressed }) => [styles.iconButton, pressed ? { opacity: 0.75 } : null]}
         hitSlop={12}
       >
-        <Image source={require('../../assets/icon.png')} style={styles.icon} />
+        <Image
+          source={require('../../assets/couplix-header-mark-transparent.png')}
+          style={styles.icon}
+          resizeMode="contain"
+        />
       </Pressable>
       <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
         {title}
@@ -36,15 +40,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    height: 40,
+    minHeight: 44,
   },
   iconButton: {
-    borderRadius: 12,
+    borderRadius: 14,
   },
   icon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
   },
   title: {
     fontSize: 22,

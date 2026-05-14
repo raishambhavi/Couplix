@@ -41,13 +41,6 @@ const featureCards = [
     subTogether: 'Pins for favourite spots you share',
     subLD: 'Pins when you reunite + places that matter',
   },
-  {
-    key: 'PhotoDrop' as const,
-    title: 'Photo Drop',
-    icon: 'images',
-    subTogether: 'Prompted raw drops into your shared roll',
-    subLD: 'Prompted raw drops until you’re together again',
-  },
 ] as const;
 
 export function SnapHubScreen() {
@@ -103,7 +96,7 @@ export function SnapHubScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: 20, paddingTop: 90, paddingBottom: 32, gap: 14 },
+  container: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 32, gap: 14 },
   list: { gap: 10 },
   item: {
     borderWidth: 1,

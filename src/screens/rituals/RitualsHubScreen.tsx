@@ -28,6 +28,13 @@ const featureCards = [
     subLD: 'Depth for hearts in two places',
   },
   {
+    key: 'CoupleTasks' as const,
+    title: 'Tasks',
+    icon: 'checkbox-outline',
+    subTogether: 'Light weekday prompts · bigger weekend adventures',
+    subLD: 'Weekday check-ins · weekend connection boosts',
+  },
+  {
     key: 'NightNote' as const,
     title: 'Night Note',
     icon: 'moon',

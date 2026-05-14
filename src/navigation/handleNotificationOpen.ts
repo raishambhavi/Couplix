@@ -25,11 +25,9 @@ export function navigateFromNotificationData(
         nav.navigate('Nudge');
         break;
       case 'heartbeat':
-        nav.navigate('Heartbeat');
+        nav.navigate('Mood');
         break;
       case 'shared_sky':
-        nav.navigate('SharedSky');
-        break;
       case 'soft_location':
         nav.navigate('SoftLocation');
         break;

@@ -19,7 +19,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -36,6 +36,18 @@ const REACTIONS = ['❤️', '😂', '🔥', '🥹'] as const;
 type GifItem = { id: string; url: string; preview: string };
 const RECENT_SEARCHES_KEY = 'chat:gifs:recentSearches';
 const FAVORITE_GIFS_KEY = 'chat:gifs:favorites';
+
+/** Recording leaves `allowsRecordingIOS: true`, which routes playback to the earpiece — reset for loudspeaker + system volume. */
+async function setChatVoicePlaybackMode() {
+  await Audio.setAudioModeAsync({
+    allowsRecordingIOS: false,
+    playsInSilentModeIOS: true,
+    interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+    interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+    shouldDuckAndroid: true,
+    playThroughEarpieceAndroid: false,
+  });
+}
 
 function formatMessageTime(ts: number) {
   if (ts == null || Number.isNaN(Number(ts))) return '';
@@ -235,6 +247,7 @@ export function ChatScreen() {
       // ignore
     } finally {
       setRecording(null);
+      setChatVoicePlaybackMode().catch(() => {});
     }
   };
   const sendVoiceDraft = () => {
@@ -258,7 +271,11 @@ export function ChatScreen() {
         await playbackRef.current.unloadAsync();
         playbackRef.current = null;
       }
-      const { sound } = await Audio.Sound.createAsync({ uri: item.audioUri }, { shouldPlay: true });
+      await setChatVoicePlaybackMode();
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: item.audioUri },
+        { shouldPlay: true, volume: 1.0, isMuted: false },
+      );
       playbackRef.current = sound;
       setPlayingVoiceId(item.id);
       sound.setOnPlaybackStatusUpdate((status) => {

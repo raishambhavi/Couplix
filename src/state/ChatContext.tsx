@@ -12,6 +12,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 
+import { deferFirestoreUnsubscribe } from '../config/deferFirestoreUnsubscribe';
 import { firebaseAuth, firebaseDb } from '../config/firebase';
 import { uploadChatMedia } from '../utils/uploadChatMedia';
 import { FIRESTORE_SYNC_FLAGS } from '../config/firestoreSyncFlags';
@@ -214,7 +215,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
-      unsub?.();
+      deferFirestoreUnsubscribe(unsub);
     };
   }, [coupleCode, uid, coupleMembershipReady]);
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CountdownTogetherScreen } from '../screens/together/CountdownTogetherScreen';
 import { CoupleGoalsScreen } from '../screens/together/CoupleGoalsScreen';
@@ -11,6 +12,7 @@ import { TravelMapScreen } from '../screens/together/TravelMapScreen';
 import { UpdateTripScreen } from '../screens/together/UpdateTripScreen';
 import { TogetherProvider } from '../state/TogetherContext';
 import { useTheme } from '../state/ThemeContext';
+import { couplixMainHeaderScreenOptions } from './couplixHeaderScreenOptions';
 
 export type TogetherStackParamList = {
   TogetherHub: undefined;
@@ -27,14 +29,12 @@ const Stack = createNativeStackNavigator<TogetherStackParamList>();
 
 export function TogetherStackNavigator() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <TogetherProvider>
       <Stack.Navigator
         screenOptions={{
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
+          ...couplixMainHeaderScreenOptions({ insets, colors }),
           contentStyle: { backgroundColor: colors.background },
         }}
       >

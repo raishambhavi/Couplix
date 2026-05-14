@@ -103,10 +103,19 @@ service cloud.firestore {
 
     function validRitualsState() {
       let d = request.resource.data;
-      return keysSubsetOf(d, ['dareStreak', 'streakBoard', 'partnerQ', 'updatedAt', 'nightNote', 'nightSaved', 'nightNoteFormat', 'nightMediaUrl']) &&
+      return keysSubsetOf(d, ['dareStreak', 'streakBoard', 'partnerQ', 'qotdAnswers', 'qotdDateKey', 'qotdActiveTopicId', 'qotdTopicLockDayKey', 'qotdTopicProgress', 'qotdTopicByUid', 'qotdMirrorAnswers', 'dareDoneByUid', 'dareDoneDayKey', 'updatedAt', 'nightNote', 'nightSaved', 'nightNoteFormat', 'nightMediaUrl']) &&
         (d.dareStreak == null || d.dareStreak is int) &&
         (d.streakBoard == null || d.streakBoard is map) &&
         shortStringOrNull(d.partnerQ, 4000) &&
+        (d.qotdAnswers == null || d.qotdAnswers is map) &&
+        (d.qotdDateKey == null || (d.qotdDateKey is string && d.qotdDateKey.size() <= 16)) &&
+        shortStringOrNull(d.qotdActiveTopicId, 48) &&
+        (d.qotdTopicLockDayKey == null || (d.qotdTopicLockDayKey is string && d.qotdTopicLockDayKey.size() <= 16)) &&
+        (d.qotdTopicProgress == null || d.qotdTopicProgress is map) &&
+        (d.qotdTopicByUid == null || d.qotdTopicByUid is map) &&
+        (d.qotdMirrorAnswers == null || d.qotdMirrorAnswers is map) &&
+        (d.dareDoneByUid == null || d.dareDoneByUid is map) &&
+        (d.dareDoneDayKey == null || (d.dareDoneDayKey is string && d.dareDoneDayKey.size() <= 16)) &&
         (d.updatedAt == null || d.updatedAt is int) &&
         shortStringOrNull(d.nightNote, 4000) &&
         (d.nightSaved == null || d.nightSaved is bool) &&
@@ -188,6 +197,98 @@ service cloud.firestore {
         d.createdAtMs is int;
     }
 
+    function validSharedCalendarInviteCreate() {
+      let d = request.resource.data;
+      return keysSubsetOf(
+          d,
+          ['fromUid', 'fromName', 'fromCalendarEmail', 'toPartnerUid', 'toCalendarEmail', 'status', 'createdAtMs']
+        ) &&
+        nonEmptyString(d.fromUid, 128) &&
+        d.fromUid == request.auth.uid &&
+        shortStringOrNull(d.fromName, 80) &&
+        nonEmptyString(d.fromCalendarEmail, 320) &&
+        nonEmptyString(d.toCalendarEmail, 320) &&
+        d.status == 'pending' &&
+        d.createdAtMs is int &&
+        d.toPartnerUid is string &&
+        d.toPartnerUid.size() <= 128 &&
+        (d.toPartnerUid == '' || (d.toPartnerUid != request.auth.uid && nonEmptyString(d.toPartnerUid, 128)));
+    }
+
+    function validSharedCalendarInviteUpdate(cc) {
+      let o = resource.data;
+      let r = request.resource.data;
+      let partnerMayRespond =
+        isCoupleMember(cc) &&
+        request.auth.uid != o.fromUid;
+      return keysSubsetOf(
+          r,
+          ['fromUid', 'fromName', 'fromCalendarEmail', 'toPartnerUid', 'toCalendarEmail', 'status', 'createdAtMs']
+        ) &&
+        o.fromUid == r.fromUid &&
+        o.toPartnerUid == r.toPartnerUid &&
+        o.fromCalendarEmail == r.fromCalendarEmail &&
+        o.toCalendarEmail == r.toCalendarEmail &&
+        o.fromName == r.fromName &&
+        o.createdAtMs == r.createdAtMs &&
+        (
+          (
+            partnerMayRespond &&
+            o.status == 'pending' &&
+            (r.status == 'accepted' || r.status == 'declined')
+          ) ||
+          (
+            request.auth.uid == o.fromUid &&
+            o.status == 'pending' &&
+            r.status == 'cancelled'
+          )
+        );
+    }
+
+    function validJointCalendarEventCreate() {
+      let d = request.resource.data;
+      return keysSubsetOf(
+          d,
+          ['title', 'startMs', 'endMs', 'proposedByUid', 'proposedByName', 'status', 'createdAtMs']
+        ) &&
+        nonEmptyString(d.title, 200) &&
+        d.startMs is int &&
+        d.endMs is int &&
+        d.endMs > d.startMs &&
+        d.proposedByUid == request.auth.uid &&
+        shortStringOrNull(d.proposedByName, 80) &&
+        d.status == 'pending' &&
+        d.createdAtMs is int;
+    }
+
+    function validJointCalendarEventUpdate(cc) {
+      let o = resource.data;
+      let r = request.resource.data;
+      return keysSubsetOf(
+          r,
+          ['title', 'startMs', 'endMs', 'proposedByUid', 'proposedByName', 'status', 'createdAtMs']
+        ) &&
+        o.title == r.title &&
+        o.startMs == r.startMs &&
+        o.endMs == r.endMs &&
+        o.proposedByUid == r.proposedByUid &&
+        o.proposedByName == r.proposedByName &&
+        o.createdAtMs == r.createdAtMs &&
+        (
+          (
+            isCoupleMember(cc) &&
+            request.auth.uid != o.proposedByUid &&
+            o.status == 'pending' &&
+            (r.status == 'accepted' || r.status == 'declined')
+          ) ||
+          (
+            request.auth.uid == o.proposedByUid &&
+            o.status == 'pending' &&
+            r.status == 'cancelled'
+          )
+        );
+    }
+
     // Partner-visible name + photo (HTTPS URLs). Private user doc stays owner-only.
     function validCouplePublicProfile() {
       let d = request.resource.data;
@@ -264,6 +365,20 @@ service cloud.firestore {
       match /heartbeat_events/{docId} {
         allow read: if isCoupleMember(coupleCode);
         allow create, update: if isCoupleMember(coupleCode) && validHeartbeatDoc();
+        allow delete: if false;
+      }
+
+      match /shared_calendar_invites/{inviteId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create: if isCoupleMember(coupleCode) && validSharedCalendarInviteCreate();
+        allow update: if isCoupleMember(coupleCode) && validSharedCalendarInviteUpdate(coupleCode);
+        allow delete: if false;
+      }
+
+      match /shared_calendar_joint_events/{eventId} {
+        allow read: if isCoupleMember(coupleCode);
+        allow create: if isCoupleMember(coupleCode) && validJointCalendarEventCreate();
+        allow update: if isCoupleMember(coupleCode) && validJointCalendarEventUpdate(coupleCode);
         allow delete: if false;
       }
     }

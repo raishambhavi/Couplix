@@ -1,5 +1,7 @@
 /** Living-together vs long-distance + rotation pool vs tiered dares. */
 
+import { isWeekendUtc, permutedPoolIndex } from '../utils/ritualDeterminism';
+
 export type CoupleMode = 'together' | 'longDistance';
 export type DareTierKind = 'rotation' | 'fun' | 'deep' | 'spicy';
 
@@ -188,6 +190,104 @@ export function pickRandomFromPool<T extends string>(
     next = pool[Math.floor(Math.random() * pool.length)]!;
   }
   return next;
+}
+
+export type WeekBand = 'weekday' | 'weekend';
+
+export function weekBandForDate(d = new Date()): WeekBand {
+  return isWeekendUtc(d) ? 'weekend' : 'weekday';
+}
+
+/** Mon–Fri: light, practical, emotional — living together. */
+export const WEEKDAY_LIGHT_TOGETHER: readonly string[] = [
+  'Cook one simple meal together tonight — split prep and dishes evenly.',
+  'Do one chore your partner usually handles — without being asked first.',
+  'Five-minute check-in: “What felt heavy today?” — listen, no fixing unless they ask.',
+  'Snap one photo of something that made you smile today and show it at dinner.',
+  'Trade compliments: each say three specific things you noticed about the other this week.',
+  'Plan tomorrow’s breakfast together in two minutes — keep it easy.',
+  'Clear one small clutter spot together (a drawer, a shelf) in 10 minutes.',
+  'Share one feeling you have not said out loud this week — keep it under two minutes each.',
+  'Help each other with one “life admin” task (mail, calendar, groceries) for 15 minutes.',
+  'Put phones in another room for the first 20 minutes after you are both home.',
+  'Write a sticky-note thank-you for something small they did and hide it where they will find it.',
+  'Take a 12-minute walk around the block together — no agenda, just side by side.',
+  'Ask: “What would make tonight feel kinder?” — pick one tiny thing and do it.',
+  'Split cooking: one chops, one stirs — finish with a high-five.',
+  'Share one worry about the week ahead; the other only validates, then asks one gentle question.',
+];
+
+/** Sat–Sun: a bit more playful — still at home. */
+export const WEEKEND_FUN_TOGETHER: readonly string[] = [
+  'Build a blanket fort and watch one episode inside it with snacks.',
+  'Dance together in the kitchen to the first song that comes on shuffle.',
+  'Try a 20-minute “Chopped” challenge: pick 4 random pantry ingredients and make a snack plate.',
+  'Board-game or card-game best-of-three — loser does tomorrow’s coffee run.',
+  'Recreate a cheap “restaurant night” at home: candles + playlist + dress code.',
+  'Film a 30-second silly commercial for “your brand as a couple.”',
+  'Picnic on the floor: same blanket rules as outdoors, zero phones for 30 minutes.',
+  'Each draw a portrait of the other in 3 minutes — laugh, then frame the winner on the fridge.',
+  'Learn one TikTok-length dance together — perfection not required.',
+  'Sunset or sunrise watch from the balcony, window, or yard — share one hope for next week.',
+];
+
+/** Mon–Fri: connection across distance — light, doable on a workday. */
+export const WEEKDAY_LIGHT_LONG_DISTANCE: readonly string[] = [
+  'Send one genuine voice compliment (30–45 seconds) — be specific.',
+  'Snap a photo of your lunch or desk and caption what made you think of them today.',
+  'Share one feeling in a voice note — “Here is something soft in me today…”',
+  'Text three micro-gratitude bullets about your partner (things they did, not traits only).',
+  'Plan the same 15-minute “parallel date”: same snack, same playlist start time, video optional.',
+  'Each share one small win from work or study today — cheer like you are in the front row.',
+  'Send a photo of the sky where you are right now — compare moods in two sentences each.',
+  'Voice note: one thing you wish you could help them with if you were in the same room.',
+  'Trade “rose / thorn / bud” for the day — keep each under 20 seconds.',
+  'Send a meme that matches their week energy — then explain why in one line.',
+  'Schedule tomorrow’s good-morning message tonight so it lands when their day starts.',
+  'Share one boundary or need for the week — practical, kind, no debate required tonight.',
+  'Record a 10-second “thinking of you” clip from somewhere mundane (bus stop, kitchen, etc.).',
+  'Each pick a recipe you will both cook “together apart” this weekend — share ingredient lists today.',
+  'Send a voice note describing the last time they made you laugh — detail wins.',
+];
+
+/** Sat–Sun: more playful energy for LD. */
+export const WEEKEND_FUN_LONG_DISTANCE: readonly string[] = [
+  'Same-time movie: press play together on the same film — debrief in voice notes after.',
+  'Video call dress code: “nice tops, chaos bottoms” — screenshot optional.',
+  'Online game night: 20 minutes of anything you both can access — winner picks next visit meal.',
+  'Each send the most ridiculous selfie you can make in 60 seconds.',
+  'Build a shared playlist of 5 songs for a pretend road trip — explain each pick.',
+  'Virtual museum or street-view “walk” together for 15 minutes — pick the city together.',
+  'Send a voice note doing your best movie-trailer voice for “this weekend in our relationship.”',
+  'Both order the same category of treat delivery — rate the reveal out of 10.',
+  'Write a two-sentence “alternate universe us” story and read them to each other on call.',
+  'Plan a future weekend day hour-by-hour — dream logistics welcome.',
+];
+
+export function syncedDailyDareText(
+  mode: CoupleMode,
+  coupleCode: string | null | undefined,
+  dateKey: string,
+  d = new Date(),
+): { text: string; band: WeekBand } {
+  const band = weekBandForDate(d);
+  if (!coupleCode?.trim()) {
+    return {
+      text: 'Pair with your partner to unlock the same dare and question every day.',
+      band,
+    };
+  }
+  const code = coupleCode.trim();
+  const pool =
+    mode === 'together'
+      ? band === 'weekend'
+        ? WEEKEND_FUN_TOGETHER
+        : WEEKDAY_LIGHT_TOGETHER
+      : band === 'weekend'
+        ? WEEKEND_FUN_LONG_DISTANCE
+        : WEEKDAY_LIGHT_LONG_DISTANCE;
+  const i = permutedPoolIndex(pool.length, 'daily-dare-v2', code, dateKey);
+  return { text: pool[i] ?? 'Take a small loving action for each other today.', band };
 }
 
 export function randomDare(mode: CoupleMode, tier: DareTierKind, previous?: string | null) {

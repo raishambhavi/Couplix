@@ -57,8 +57,8 @@ export function MemoryMapScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <SoftCard>
           <Text style={[styles.sub, { color: colors.muted }]}>
-            When you&apos;re together somewhere meaningful, pin it with a photo and note. Full map view and poster
-            export ship in a later release — this MVP keeps your list here.
+            When you&apos;re together somewhere meaningful, pin it with a photo and note. Full map view ships in a
+            later release — this MVP keeps your list here.
           </Text>
         </SoftCard>
 
@@ -111,11 +111,6 @@ export function MemoryMapScreen() {
               </View>
             ))
           )}
-          <GoldButton
-            title="Export poster (coming soon)"
-            onPress={() => Alert.alert('Export', 'Print-ready poster export will be available in a future update.')}
-            style={{ marginTop: 10, opacity: 0.75 }}
-          />
         </SoftCard>
       </ScrollView>
       <FloatingBackButton />

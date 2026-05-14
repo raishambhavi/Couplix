@@ -22,11 +22,9 @@ export function CoupleTasksScreen() {
   const { coupleMode } = usePairing();
   const { addTaskLinkedMessage } = useChat();
   const {
-    list,
+    taskCadence,
     currentTaskText,
     completion,
-    coupleScorePercent,
-    dualCompleteCount,
     toggleMyComplete,
     togglePartnerComplete,
     nextTask,
@@ -52,23 +50,12 @@ export function CoupleTasksScreen() {
       <AmbientBackground />
       <ScrollView contentContainerStyle={styles.container}>
         <SoftCard>
-          <Text style={[styles.kicker, { color: colors.gold }]}>
-            {ld ? 'Long distance · individual & connection' : 'Living together · shared experiences'}
-          </Text>
-          <Text style={[styles.sub, { color: colors.muted }]}>
-            One curated task at a time. Each of you checks off independently — combined progress is your couple
-            score. Change relationship mode on Home to switch lists.
-          </Text>
-          <View style={[styles.scoreRow, { borderColor: colors.border }]}>
-            <Text style={[styles.scoreLabel, { color: colors.text }]}>your bonding ritual score:</Text>
-            <Text style={[styles.scoreVal, { color: colors.gold }]}>
-              {coupleScorePercent}% · {dualCompleteCount}/{list.length} {ld ? 'both done' : 'done'}
-            </Text>
-          </View>
-        </SoftCard>
-
-        <SoftCard>
           <Text style={[styles.h, { color: colors.text }]}>Today&apos;s task</Text>
+          <Text style={[styles.cadenceHint, { color: colors.muted }]}>
+            {taskCadence === 'weekend'
+              ? 'Weekend set — Sat–Sun (UTC) · bigger energy'
+              : 'Weekday set — Mon–Fri (UTC) · lighter'}
+          </Text>
           <Text style={[styles.body, { color: colors.text }]}>{currentTaskText || '—'}</Text>
 
           {ld ? (
@@ -123,21 +110,8 @@ function TaskCheck({
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 32, gap: 14 },
-  kicker: { fontSize: 11, fontWeight: '900', letterSpacing: 0.6 },
-  sub: { marginTop: 8, fontSize: 12, fontWeight: '700', lineHeight: 18 },
-  scoreRow: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  scoreLabel: { fontSize: 13, fontWeight: '800' },
-  scoreVal: { fontSize: 14, fontWeight: '900' },
   h: { fontSize: 15, fontWeight: '900' },
+  cadenceHint: { marginTop: 6, fontSize: 12, fontWeight: '700', lineHeight: 17 },
   body: { marginTop: 10, fontSize: 16, fontWeight: '800', lineHeight: 24 },
   checkRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 16, gap: 16 },
   checkSingle: { marginTop: 16, alignItems: 'center' },

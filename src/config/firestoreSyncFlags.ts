@@ -24,6 +24,7 @@ const MODULE_ROLLOUT = {
   softLocation: true,
   sharedSky: true,
   mood: true,
+  sharedCalendar: true,
 } as const;
 
 // Effective flags = global switch + per-module rollout.
@@ -39,5 +40,6 @@ export const FIRESTORE_SYNC_FLAGS = {
   softLocation: firestoreGlobalEnabled && MODULE_ROLLOUT.softLocation,
   sharedSky: firestoreGlobalEnabled && MODULE_ROLLOUT.sharedSky,
   mood: firestoreGlobalEnabled && MODULE_ROLLOUT.mood,
+  sharedCalendar: firestoreGlobalEnabled && MODULE_ROLLOUT.sharedCalendar,
 } as const;
 
